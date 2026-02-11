@@ -14,22 +14,22 @@ struct GameHUDView: View {
             // Top bar
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Hole \(scoringManager.currentHole)")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                    Text("Par \(currentPar)")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                    Text("HOLE \(scoringManager.currentHole)")
+                        .font(.custom("Noteworthy-Bold", size: 18))
+                    Text("PAR \(currentPar)")
+                        .font(.custom("Noteworthy-Light", size: 13))
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("Strokes: \(turnManager.strokeCount)")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                    Text("STROKES: \(turnManager.strokeCount)")
+                        .font(.custom("Noteworthy-Bold", size: 18))
                     if turnManager.strokeCount > 0 {
                         let diff = turnManager.strokeCount - currentPar
-                        Text(diff == 0 ? "Even" : (diff > 0 ? "+\(diff)" : "\(diff)"))
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                        Text(diff == 0 ? "EVEN" : (diff > 0 ? "+\(diff)" : "\(diff)"))
+                            .font(.custom("Noteworthy-Bold", size: 13))
                             .foregroundStyle(diff <= 0 ? .green : .red)
                     }
                 }
@@ -74,8 +74,8 @@ struct GameHUDView: View {
     }
 
     private func instructionBadge(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 15, weight: .medium, design: .rounded))
+        Text(text.uppercased())
+            .font(.custom("Noteworthy-Bold", size: 14))
             .foregroundStyle(.primary)
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
@@ -85,29 +85,39 @@ struct GameHUDView: View {
 
     private var holeCompleteOverlay: some View {
         VStack(spacing: 16) {
-            Text("Hole Complete!")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
+            Text("HOLE COMPLETE!")
+                .font(.custom("Noteworthy-Bold", size: 28))
 
             let diff = turnManager.strokeCount - currentPar
             let label = scoreLabel(for: diff)
 
-            Text(label)
-                .font(.system(size: 22, weight: .semibold, design: .rounded))
+            Text(label.uppercased())
+                .font(.custom("Noteworthy-Bold", size: 22))
                 .foregroundStyle(diff <= 0 ? .green : .orange)
 
-            Text("\(turnManager.strokeCount) stroke\(turnManager.strokeCount == 1 ? "" : "s")")
-                .font(.system(size: 17, weight: .medium, design: .rounded))
+            HStack(spacing: 4) {
+                ForEach(0..<min(turnManager.strokeCount, 5), id: \.self) { _ in
+                    Image("GameUI/star")
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                }
+            }
+
+            Text("\(turnManager.strokeCount) STROKE\(turnManager.strokeCount == 1 ? "" : "S")")
+                .font(.custom("Noteworthy-Light", size: 16))
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 16) {
-                Button("Menu") {
+                Button("MENU") {
                     onReturnToMenu()
                 }
+                .font(.custom("Noteworthy-Bold", size: 15))
                 .buttonStyle(.bordered)
 
-                Button("Next Hole") {
+                Button("NEXT HOLE") {
                     onNextHole()
                 }
+                .font(.custom("Noteworthy-Bold", size: 15))
                 .buttonStyle(.borderedProminent)
                 .tint(.green)
             }

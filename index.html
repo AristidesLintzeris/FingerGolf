@@ -48,9 +48,6 @@
   }
   input:focus { outline: none; border-color: #4ecca3; }
 
-  .inline-inputs { display: flex; gap: 8px; }
-  .inline-inputs > div { flex: 1; }
-
   /* Piece palette */
   #palette {
     flex: 1;
@@ -113,6 +110,7 @@
     background: #16213e;
     border-bottom: 1px solid #0f3460;
     gap: 12px;
+    flex-wrap: wrap;
   }
   .toolbar-group {
     display: flex;
@@ -147,17 +145,16 @@
     text-align: center;
   }
 
-  /* Canvas */
-  #canvas-container {
+  /* Viewport */
+  #viewport {
     flex: 1;
     position: relative;
     overflow: hidden;
-    cursor: crosshair;
   }
-  canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
+  #viewport canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
 
   /* Coords display */
@@ -166,9 +163,26 @@
     bottom: 12px;
     left: 12px;
     font-size: 12px;
-    color: #666;
+    color: #aaa;
     pointer-events: none;
+    background: rgba(0,0,0,0.5);
+    padding: 4px 8px;
+    border-radius: 4px;
   }
+
+  /* Loading indicator */
+  #loading {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 12px;
+    color: #4ecca3;
+    background: rgba(0,0,0,0.7);
+    padding: 4px 10px;
+    border-radius: 4px;
+    display: none;
+  }
+  #loading.visible { display: block; }
 
   /* Export modal */
   #export-modal {
@@ -221,9 +235,9 @@
   <div class="section">
     <h3>Course Info</h3>
     <label>Name</label>
-    <input type="text" id="course-name" value="My Course" />
+    <input type="text" id="course-name" value="First Putt" />
     <label>Par</label>
-    <input type="number" id="course-par" value="3" min="1" max="12" />
+    <input type="number" id="course-par" value="2" min="1" max="12" />
   </div>
 
   <div class="section">
@@ -271,13 +285,14 @@
     <div style="flex:1"></div>
 
     <div class="toolbar-group">
+      <button class="tb-btn" onclick="fitCamera()">Fit View (F)</button>
       <button class="tb-btn danger" onclick="clearAll()">Clear All</button>
     </div>
   </div>
 
-  <div id="canvas-container">
-    <canvas id="canvas"></canvas>
+  <div id="viewport">
     <div id="coords"></div>
+    <div id="loading">Loading model...</div>
   </div>
 </div>
 
@@ -292,27 +307,333 @@
   </div>
 </div>
 
-<script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+
+// ============================================================
+// CONFIGURATION
+// ============================================================
+const MODEL_BASE = 'FingerGolf/MinigolfModels/';
+const TEXTURE_PATH = MODEL_BASE + 'Textures/colormap.png';
+
 // ============================================================
 // STATE
 // ============================================================
-const GRID_SIZE = 20; // max grid
-let pieces = {}; // key: "x,z" -> { model, rotation }
+let pieces = {};
 let ballStart = { x: 0, z: 0 };
-let holePos = { x: 2, z: 2 };
-let viewAngle = 0; // 0=NE, 1=SE, 2=SW, 3=NW
+let holePos = { x: 0, z: 3 };
+let viewAngle = 0;
 let selectedPiece = 'end';
-let currentTool = 'piece'; // 'piece', 'ball', 'hole', 'eraser'
+let currentTool = 'piece';
 let pieceRotation = 0;
 let hoverCell = null;
 
-// Camera pan/zoom
-let camX = 0, camY = 0, zoom = 1;
-let isPanning = false, panStartX = 0, panStartY = 0, panStartCamX = 0, panStartCamY = 0;
+const modelCache = {};
+let colormapMaterial = null;
+const sceneObjects = {};
+let ballMarker = null;
+let holeMarker = null;
+let hoverMarker = null;
 
-// Tile dimensions (isometric)
-const TILE_W = 64;
-const TILE_H = 32;
+const ISO_ANGLES = [
+  Math.PI / 4,
+  Math.PI * 3 / 4,
+  Math.PI * 5 / 4,
+  Math.PI * 7 / 4,
+];
+const CAM_ELEVATION = Math.atan(1 / Math.sqrt(2));
+const CAM_DISTANCE = 20;
+
+// ============================================================
+// THREE.JS SETUP
+// ============================================================
+const viewport = document.getElementById('viewport');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2e);
+
+const frustumSize = 8;
+let aspect = viewport.clientWidth / viewport.clientHeight;
+const camera = new THREE.OrthographicCamera(
+  -frustumSize * aspect / 2, frustumSize * aspect / 2,
+  frustumSize / 2, -frustumSize / 2, 0.1, 100
+);
+scene.add(camera);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+viewport.appendChild(renderer.domElement);
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+// Invisible ground plane for raycasting
+const groundPlane = new THREE.Mesh(
+  new THREE.PlaneGeometry(100, 100),
+  new THREE.MeshBasicMaterial({ visible: false })
+);
+groundPlane.rotation.x = -Math.PI / 2;
+scene.add(groundPlane);
+
+// Grid
+const gridHelper = new THREE.GridHelper(40, 40, 0x0f3460, 0x0a1a30);
+gridHelper.position.y = -0.01;
+scene.add(gridHelper);
+
+// ============================================================
+// LIGHTING
+// ============================================================
+const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+sunLight.position.set(5, 15, 5);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.left = -20;
+sunLight.shadow.camera.right = 20;
+sunLight.shadow.camera.top = 20;
+sunLight.shadow.camera.bottom = -20;
+scene.add(sunLight);
+
+scene.add(new THREE.HemisphereLight(0x87ceeb, 0x556644, 0.6));
+scene.add(new THREE.AmbientLight(0xc0c8d0, 0.4));
+
+// ============================================================
+// CAMERA
+// ============================================================
+let cameraTarget = new THREE.Vector3(0, 0, 1.5);
+let currentCamAngle = ISO_ANGLES[0];
+let targetCamAngle = ISO_ANGLES[0];
+
+function updateCameraPosition(immediate) {
+  if (!immediate) {
+    const diff = targetCamAngle - currentCamAngle;
+    let shortDiff = ((diff + Math.PI) % (Math.PI * 2)) - Math.PI;
+    if (shortDiff < -Math.PI) shortDiff += Math.PI * 2;
+    currentCamAngle += shortDiff * 0.15;
+  } else {
+    currentCamAngle = targetCamAngle;
+  }
+
+  camera.position.set(
+    cameraTarget.x + Math.sin(currentCamAngle) * Math.cos(CAM_ELEVATION) * CAM_DISTANCE,
+    cameraTarget.y + Math.sin(CAM_ELEVATION) * CAM_DISTANCE,
+    cameraTarget.z + Math.cos(currentCamAngle) * Math.cos(CAM_ELEVATION) * CAM_DISTANCE
+  );
+  camera.lookAt(cameraTarget);
+}
+
+function fitCameraToScene() {
+  const keys = Object.keys(pieces);
+  if (keys.length === 0) {
+    cameraTarget.set(0, 0, 1.5);
+    camera.zoom = 1;
+    camera.updateProjectionMatrix();
+    return;
+  }
+
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const key of keys) {
+    const [x, z] = key.split(',').map(Number);
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minZ = Math.min(minZ, z);
+    maxZ = Math.max(maxZ, z);
+  }
+  minX = Math.min(minX, ballStart.x, holePos.x);
+  maxX = Math.max(maxX, ballStart.x, holePos.x);
+  minZ = Math.min(minZ, ballStart.z, holePos.z);
+  maxZ = Math.max(maxZ, ballStart.z, holePos.z);
+
+  cameraTarget.set((minX + maxX + 1) / 2, 0, (minZ + maxZ + 1) / 2);
+
+  const maxExtent = Math.max(maxX - minX + 2, maxZ - minZ + 2, 4);
+  camera.zoom = frustumSize / (maxExtent * 1.2);
+  camera.updateProjectionMatrix();
+}
+
+// ============================================================
+// MODEL LOADING
+// ============================================================
+const objLoader = new OBJLoader();
+const textureLoader = new THREE.TextureLoader();
+
+function loadTexture() {
+  return new Promise((resolve) => {
+    textureLoader.load(TEXTURE_PATH,
+      (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        colormapMaterial = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide });
+        resolve();
+      },
+      undefined,
+      () => {
+        console.warn('Could not load colormap, using fallback material');
+        colormapMaterial = new THREE.MeshLambertMaterial({ color: 0x4ecca3, side: THREE.DoubleSide });
+        resolve();
+      }
+    );
+  });
+}
+
+function loadModel(name) {
+  return new Promise((resolve) => {
+    if (modelCache[name]) {
+      resolve(modelCache[name].clone());
+      return;
+    }
+
+    showLoading(true);
+    objLoader.load(MODEL_BASE + name + '.obj',
+      (obj) => {
+        obj.traverse((child) => {
+          if (child.isMesh) {
+            child.material = colormapMaterial.clone();
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        modelCache[name] = obj;
+        showLoading(false);
+        resolve(obj.clone());
+      },
+      undefined,
+      () => {
+        // Fallback box
+        const cat = getCategoryForPiece(name);
+        const colors = CATEGORY_COLORS[cat] || CATEGORY_COLORS['Basic'];
+        const geo = new THREE.BoxGeometry(0.9, 0.15, 0.9);
+        const mat = new THREE.MeshLambertMaterial({ color: colors.fill });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.y = 0.075;
+        mesh.castShadow = true;
+        const group = new THREE.Group();
+        group.add(mesh);
+        modelCache[name] = group;
+        showLoading(false);
+        resolve(group.clone());
+      }
+    );
+  });
+}
+
+function showLoading(show) {
+  document.getElementById('loading').classList.toggle('visible', show);
+}
+
+// ============================================================
+// SCENE BUILDING
+// ============================================================
+async function placePieceInScene(x, z, piece) {
+  const key = `${x},${z}`;
+  if (sceneObjects[key]) {
+    scene.remove(sceneObjects[key]);
+    delete sceneObjects[key];
+  }
+
+  const model = await loadModel(piece.model);
+  model.position.set(x + 0.5, 0, z + 0.5);
+  model.rotation.y = piece.rotation * Math.PI / 180;
+  scene.add(model);
+  sceneObjects[key] = model;
+}
+
+function removePieceFromScene(x, z) {
+  const key = `${x},${z}`;
+  if (sceneObjects[key]) {
+    scene.remove(sceneObjects[key]);
+    delete sceneObjects[key];
+  }
+}
+
+function updateBallMarker() {
+  if (ballMarker) scene.remove(ballMarker);
+  const geo = new THREE.SphereGeometry(0.1, 16, 16);
+  const mat = new THREE.MeshLambertMaterial({ color: 0x4ecca3, emissive: 0x4ecca3, emissiveIntensity: 0.3 });
+  ballMarker = new THREE.Mesh(geo, mat);
+  ballMarker.position.set(ballStart.x + 0.5, 0.1, ballStart.z + 0.5);
+  ballMarker.castShadow = true;
+  scene.add(ballMarker);
+}
+
+function updateHoleMarker() {
+  if (holeMarker) scene.remove(holeMarker);
+  holeMarker = new THREE.Group();
+
+  // Dark circle
+  const holeGeo = new THREE.CircleGeometry(0.15, 24);
+  const holeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+  const holeMesh = new THREE.Mesh(holeGeo, holeMat);
+  holeMesh.rotation.x = -Math.PI / 2;
+  holeMesh.position.y = 0.01;
+  holeMarker.add(holeMesh);
+
+  // Pole
+  const poleGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.6, 8);
+  const poleMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+  const pole = new THREE.Mesh(poleGeo, poleMat);
+  pole.position.y = 0.3;
+  holeMarker.add(pole);
+
+  // Flag
+  const flagGeo = new THREE.PlaneGeometry(0.25, 0.15);
+  const flagMat = new THREE.MeshLambertMaterial({ color: 0xe74c3c, side: THREE.DoubleSide });
+  const flag = new THREE.Mesh(flagGeo, flagMat);
+  flag.position.set(0.125, 0.525, 0);
+  holeMarker.add(flag);
+
+  holeMarker.position.set(holePos.x + 0.5, 0, holePos.z + 0.5);
+  scene.add(holeMarker);
+}
+
+function updateHoverMarker(x, z) {
+  if (hoverMarker) { scene.remove(hoverMarker); hoverMarker = null; }
+  if (x === null || currentTool === 'eraser') return;
+
+  if (currentTool === 'piece') {
+    const geo = new THREE.BoxGeometry(0.95, 0.02, 0.95);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x4ecca3, transparent: true, opacity: 0.3 });
+    hoverMarker = new THREE.Mesh(geo, mat);
+    hoverMarker.position.set(x + 0.5, 0.01, z + 0.5);
+  } else if (currentTool === 'ball') {
+    const geo = new THREE.SphereGeometry(0.08, 16, 16);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x4ecca3, transparent: true, opacity: 0.5 });
+    hoverMarker = new THREE.Mesh(geo, mat);
+    hoverMarker.position.set(x + 0.5, 0.1, z + 0.5);
+  } else if (currentTool === 'hole') {
+    const geo = new THREE.CircleGeometry(0.15, 24);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xe74c3c, transparent: true, opacity: 0.5 });
+    hoverMarker = new THREE.Mesh(geo, mat);
+    hoverMarker.rotation.x = -Math.PI / 2;
+    hoverMarker.position.set(x + 0.5, 0.02, z + 0.5);
+  }
+
+  if (hoverMarker) scene.add(hoverMarker);
+}
+
+async function rebuildScene() {
+  for (const key of Object.keys(sceneObjects)) {
+    scene.remove(sceneObjects[key]);
+    delete sceneObjects[key];
+  }
+  for (const [key, piece] of Object.entries(pieces)) {
+    const [x, z] = key.split(',').map(Number);
+    await placePieceInScene(x, z, piece);
+  }
+  updateBallMarker();
+  updateHoleMarker();
+  fitCameraToScene();
+}
 
 // ============================================================
 // PIECE CATALOG
@@ -332,31 +653,30 @@ const PIECE_CATEGORIES = {
   'Support': ['support', 'support-bottom', 'support-low', 'support-low-bottom', 'supports', 'supports-bottom', 'supports-low', 'supports-low-bottom'],
 };
 
-// Color map for piece categories
 const CATEGORY_COLORS = {
-  'Basic':          { fill: '#4ecca3', stroke: '#2d8a6e' },
-  'Turns':          { fill: '#6c9bdb', stroke: '#4a7ab8' },
-  'Ramps':          { fill: '#e8a838', stroke: '#c08020' },
-  'Hills':          { fill: '#c8a050', stroke: '#a08040' },
-  'Obstacles':      { fill: '#e06060', stroke: '#b84040' },
-  'Tunnels':        { fill: '#9b6ed0', stroke: '#7a50b0' },
-  'Splits':         { fill: '#5cb8b2', stroke: '#3a9090' },
-  'Walls':          { fill: '#a0a0a0', stroke: '#808080' },
-  'Structures':     { fill: '#d0a0d0', stroke: '#b080b0' },
-  'Spline Concave': { fill: '#70b870', stroke: '#509850' },
-  'Spline Default': { fill: '#80c880', stroke: '#60a860' },
-  'Support':        { fill: '#808888', stroke: '#606868' },
+  'Basic':          { fill: '#4ecca3' },
+  'Turns':          { fill: '#6c9bdb' },
+  'Ramps':          { fill: '#e8a838' },
+  'Hills':          { fill: '#c8a050' },
+  'Obstacles':      { fill: '#e06060' },
+  'Tunnels':        { fill: '#9b6ed0' },
+  'Splits':         { fill: '#5cb8b2' },
+  'Walls':          { fill: '#a0a0a0' },
+  'Structures':     { fill: '#d0a0d0' },
+  'Spline Concave': { fill: '#70b870' },
+  'Spline Default': { fill: '#80c880' },
+  'Support':        { fill: '#808888' },
 };
 
 function getCategoryForPiece(model) {
-  for (const [cat, pieces] of Object.entries(PIECE_CATEGORIES)) {
-    if (pieces.includes(model)) return cat;
+  for (const [cat, pcs] of Object.entries(PIECE_CATEGORIES)) {
+    if (pcs.includes(model)) return cat;
   }
   return 'Basic';
 }
 
 // ============================================================
-// PALETTE SETUP
+// PALETTE
 // ============================================================
 function buildPalette() {
   const pal = document.getElementById('palette');
@@ -373,24 +693,15 @@ function buildPalette() {
       btn.textContent = m;
       btn.dataset.model = m;
       if (m === selectedPiece && currentTool === 'piece') btn.classList.add('selected');
-      btn.onclick = () => selectPiece(m);
+      btn.onclick = () => {
+        selectedPiece = m;
+        currentTool = 'piece';
+        updateToolHighlights();
+      };
       div.appendChild(btn);
     }
     pal.appendChild(div);
   }
-}
-
-function selectPiece(model) {
-  selectedPiece = model;
-  currentTool = 'piece';
-  updateToolHighlights();
-  render();
-}
-
-function selectTool(tool) {
-  currentTool = tool;
-  updateToolHighlights();
-  render();
 }
 
 function updateToolHighlights() {
@@ -403,427 +714,37 @@ function updateToolHighlights() {
 }
 
 // ============================================================
-// VIEW ROTATION
+// GLOBAL FUNCTIONS (onclick handlers)
 // ============================================================
-function setViewAngle(angle) {
-  viewAngle = angle;
-  document.querySelectorAll('#toolbar .toolbar-group:first-child .tb-btn').forEach((b, i) => {
-    b.classList.toggle('active', i === angle);
-  });
-  render();
-}
+window.selectTool = function(tool) {
+  currentTool = tool;
+  updateToolHighlights();
+};
 
-function cyclePieceRotation(dir) {
+window.setViewAngle = function(angle) {
+  viewAngle = angle;
+  targetCamAngle = ISO_ANGLES[angle];
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('view-' + i).classList.toggle('active', i === angle);
+  }
+};
+
+window.cyclePieceRotation = function(dir) {
   pieceRotation = ((pieceRotation / 90 + dir + 4) % 4) * 90;
   document.getElementById('rotation-label').textContent = pieceRotation + '\u00B0';
-  render();
-}
+};
 
-// ============================================================
-// ISOMETRIC PROJECTION
-// ============================================================
-function worldToScreen(wx, wz) {
-  // Rotate world coords based on view angle
-  let rx, rz;
-  switch (viewAngle) {
-    case 0: rx = wx; rz = wz; break;           // NE
-    case 1: rx = wz; rz = -wx; break;          // SE (90 CW)
-    case 2: rx = -wx; rz = -wz; break;         // SW (180)
-    case 3: rx = -wz; rz = wx; break;           // NW (270)
-  }
-  const sx = (rx - rz) * (TILE_W / 2) * zoom;
-  const sy = (rx + rz) * (TILE_H / 2) * zoom;
-  return { x: sx + camX, y: sy + camY };
-}
+window.fitCamera = fitCameraToScene;
 
-function screenToWorld(sx, sy) {
-  const lx = (sx - camX) / zoom;
-  const ly = (sy - camY) / zoom;
-
-  const rx = (lx / (TILE_W / 2) + ly / (TILE_H / 2)) / 2;
-  const rz = (ly / (TILE_H / 2) - lx / (TILE_W / 2)) / 2;
-
-  // Reverse rotation
-  let wx, wz;
-  switch (viewAngle) {
-    case 0: wx = rx; wz = rz; break;
-    case 1: wx = -rz; wz = rx; break;
-    case 2: wx = -rx; wz = -rz; break;
-    case 3: wx = rz; wz = -rx; break;
-  }
-  return { x: Math.round(wx), z: Math.round(wz) };
-}
-
-// ============================================================
-// RENDERING
-// ============================================================
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-
-function resizeCanvas() {
-  const container = document.getElementById('canvas-container');
-  canvas.width = container.clientWidth;
-  canvas.height = container.clientHeight;
-  // Center camera
-  camX = canvas.width / 2;
-  camY = canvas.height / 3;
-  render();
-}
-
-function render() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Draw grid
-  drawGrid();
-
-  // Collect all cells to draw, sorted by depth
-  const cells = [];
-
-  // Grid cells with pieces
-  for (const [key, piece] of Object.entries(pieces)) {
-    const [x, z] = key.split(',').map(Number);
-    cells.push({ x, z, type: 'piece', piece });
-  }
-
-  // Ball start
-  cells.push({ x: ballStart.x, z: ballStart.z, type: 'ball' });
-
-  // Hole
-  cells.push({ x: holePos.x, z: holePos.z, type: 'hole' });
-
-  // Hover preview
-  if (hoverCell && currentTool !== 'eraser') {
-    cells.push({ x: hoverCell.x, z: hoverCell.z, type: 'hover' });
-  }
-
-  // Sort by depth (back to front based on view angle)
-  cells.sort((a, b) => {
-    const da = getDepth(a.x, a.z);
-    const db = getDepth(b.x, b.z);
-    return da - db;
-  });
-
-  for (const cell of cells) {
-    switch (cell.type) {
-      case 'piece': drawPiece(cell.x, cell.z, cell.piece); break;
-      case 'ball': drawBallMarker(cell.x, cell.z); break;
-      case 'hole': drawHoleMarker(cell.x, cell.z); break;
-      case 'hover': drawHoverPreview(cell.x, cell.z); break;
-    }
-  }
-}
-
-function getDepth(wx, wz) {
-  switch (viewAngle) {
-    case 0: return wx + wz;
-    case 1: return wz - wx;
-    case 2: return -wx - wz;
-    case 3: return wx - wz;
-  }
-}
-
-function drawGrid() {
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-  ctx.lineWidth = 1;
-
-  for (let x = -2; x <= GRID_SIZE; x++) {
-    for (let z = -2; z <= GRID_SIZE; z++) {
-      drawTileOutline(x, z);
-    }
-  }
-}
-
-function getTileCorners(x, z) {
-  const top = worldToScreen(x, z);
-  const right = worldToScreen(x + 1, z);
-  const bottom = worldToScreen(x + 1, z + 1);
-  const left = worldToScreen(x, z + 1);
-  return { top, right, bottom, left };
-}
-
-function drawTileOutline(x, z) {
-  const { top, right, bottom, left } = getTileCorners(x, z);
-  ctx.beginPath();
-  ctx.moveTo(top.x, top.y);
-  ctx.lineTo(right.x, right.y);
-  ctx.lineTo(bottom.x, bottom.y);
-  ctx.lineTo(left.x, left.y);
-  ctx.closePath();
-  ctx.stroke();
-}
-
-function drawFilledTile(x, z, fillColor, strokeColor, height = 0) {
-  const { top, right, bottom, left } = getTileCorners(x, z);
-  const h = height * TILE_H * zoom;
-
-  // Top face
-  ctx.fillStyle = fillColor;
-  ctx.strokeStyle = strokeColor;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(top.x, top.y - h);
-  ctx.lineTo(right.x, right.y - h);
-  ctx.lineTo(bottom.x, bottom.y - h);
-  ctx.lineTo(left.x, left.y - h);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  if (height > 0) {
-    // Left side face
-    ctx.fillStyle = adjustBrightness(fillColor, -30);
-    ctx.beginPath();
-    ctx.moveTo(left.x, left.y - h);
-    ctx.lineTo(bottom.x, bottom.y - h);
-    ctx.lineTo(bottom.x, bottom.y);
-    ctx.lineTo(left.x, left.y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Right side face
-    ctx.fillStyle = adjustBrightness(fillColor, -50);
-    ctx.beginPath();
-    ctx.moveTo(right.x, right.y - h);
-    ctx.lineTo(bottom.x, bottom.y - h);
-    ctx.lineTo(bottom.x, bottom.y);
-    ctx.lineTo(right.x, right.y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  }
-}
-
-function drawPiece(x, z, piece) {
-  const cat = getCategoryForPiece(piece.model);
-  const colors = CATEGORY_COLORS[cat] || CATEGORY_COLORS['Basic'];
-
-  // Ramps get slight height
-  const isRamp = piece.model.includes('ramp') || piece.model.includes('hill');
-  const isStructure = piece.model.includes('structure') || piece.model === 'castle' || piece.model === 'windmill';
-  const height = isStructure ? 0.6 : (isRamp ? 0.3 : 0.15);
-
-  drawFilledTile(x, z, colors.fill, colors.stroke, height);
-
-  // Label
-  const center = worldToScreen(x + 0.5, z + 0.5);
-  const h = height * TILE_H * zoom;
-  ctx.fillStyle = '#fff';
-  ctx.font = `${Math.max(8, 10 * zoom)}px -apple-system, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  // Truncate long names
-  let label = piece.model;
-  if (label.length > 12) label = label.slice(0, 11) + '..';
-  ctx.fillText(label, center.x, center.y - h);
-
-  // Show rotation indicator if non-zero
-  if (piece.rotation !== 0) {
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = `${Math.max(7, 8 * zoom)}px -apple-system, sans-serif`;
-    ctx.fillText(piece.rotation + '\u00B0', center.x, center.y - h + 12 * zoom);
-  }
-}
-
-function drawBallMarker(x, z) {
-  const center = worldToScreen(x + 0.5, z + 0.5);
-  const r = 8 * zoom;
-  ctx.fillStyle = '#4ecca3';
-  ctx.strokeStyle = '#2d8a6e';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(center.x, center.y - 4 * zoom, r, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = '#fff';
-  ctx.font = `bold ${Math.max(8, 9 * zoom)}px -apple-system, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('B', center.x, center.y - 4 * zoom);
-}
-
-function drawHoleMarker(x, z) {
-  const center = worldToScreen(x + 0.5, z + 0.5);
-  const r = 8 * zoom;
-  ctx.fillStyle = '#e74c3c';
-  ctx.strokeStyle = '#a03020';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(center.x, center.y - 4 * zoom, r, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = '#fff';
-  ctx.font = `bold ${Math.max(8, 9 * zoom)}px -apple-system, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('H', center.x, center.y - 4 * zoom);
-}
-
-function drawHoverPreview(x, z) {
-  if (currentTool === 'piece') {
-    const cat = getCategoryForPiece(selectedPiece);
-    const colors = CATEGORY_COLORS[cat] || CATEGORY_COLORS['Basic'];
-    ctx.globalAlpha = 0.4;
-    drawFilledTile(x, z, colors.fill, colors.stroke, 0.15);
-    ctx.globalAlpha = 1;
-  } else if (currentTool === 'ball') {
-    ctx.globalAlpha = 0.5;
-    drawBallMarker(x, z);
-    ctx.globalAlpha = 1;
-  } else if (currentTool === 'hole') {
-    ctx.globalAlpha = 0.5;
-    drawHoleMarker(x, z);
-    ctx.globalAlpha = 1;
-  }
-}
-
-function adjustBrightness(hex, amount) {
-  const r = Math.max(0, Math.min(255, parseInt(hex.slice(1, 3), 16) + amount));
-  const g = Math.max(0, Math.min(255, parseInt(hex.slice(3, 5), 16) + amount));
-  const b = Math.max(0, Math.min(255, parseInt(hex.slice(5, 7), 16) + amount));
-  return `rgb(${r},${g},${b})`;
-}
-
-// ============================================================
-// INPUT HANDLING
-// ============================================================
-const container = document.getElementById('canvas-container');
-
-container.addEventListener('mousedown', (e) => {
-  if (e.button === 1 || (e.button === 0 && e.altKey)) {
-    // Middle click or Alt+click = pan
-    isPanning = true;
-    panStartX = e.clientX;
-    panStartY = e.clientY;
-    panStartCamX = camX;
-    panStartCamY = camY;
-    container.style.cursor = 'grabbing';
-    e.preventDefault();
-    return;
-  }
-
-  if (e.button === 0) {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const cell = screenToWorld(mx, my);
-    placeAtCell(cell);
-  }
-
-  if (e.button === 2) {
-    // Right click = erase
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const cell = screenToWorld(mx, my);
-    delete pieces[`${cell.x},${cell.z}`];
-    render();
-  }
-});
-
-container.addEventListener('mousemove', (e) => {
-  if (isPanning) {
-    camX = panStartCamX + (e.clientX - panStartX);
-    camY = panStartCamY + (e.clientY - panStartY);
-    render();
-    return;
-  }
-
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-  const cell = screenToWorld(mx, my);
-  hoverCell = cell;
-
-  document.getElementById('coords').textContent = `x: ${cell.x}, z: ${cell.z}`;
-  render();
-});
-
-container.addEventListener('mouseup', () => {
-  if (isPanning) {
-    isPanning = false;
-    container.style.cursor = 'crosshair';
-  }
-});
-
-container.addEventListener('mouseleave', () => {
-  hoverCell = null;
-  isPanning = false;
-  container.style.cursor = 'crosshair';
-  render();
-});
-
-container.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  const delta = e.deltaY > 0 ? -0.1 : 0.1;
-  const newZoom = Math.max(0.3, Math.min(3, zoom + delta));
-
-  // Zoom toward mouse
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-
-  camX = mx - (mx - camX) * (newZoom / zoom);
-  camY = my - (my - camY) * (newZoom / zoom);
-  zoom = newZoom;
-  render();
-}, { passive: false });
-
-container.addEventListener('contextmenu', (e) => e.preventDefault());
-
-// Keyboard shortcuts
-document.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-  switch (e.key) {
-    case 'r': case 'R': cyclePieceRotation(1); break;
-    case 'q': case 'Q': cyclePieceRotation(-1); break;
-    case '1': setViewAngle(0); break;
-    case '2': setViewAngle(1); break;
-    case '3': setViewAngle(2); break;
-    case '4': setViewAngle(3); break;
-    case 'b': case 'B': selectTool('ball'); break;
-    case 'h': case 'H': selectTool('hole'); break;
-    case 'e': case 'E': selectTool('eraser'); break;
-    case 'Escape': closeExport(); break;
-  }
-});
-
-function placeAtCell(cell) {
-  switch (currentTool) {
-    case 'piece':
-      pieces[`${cell.x},${cell.z}`] = { model: selectedPiece, rotation: pieceRotation };
-      break;
-    case 'ball':
-      ballStart = { x: cell.x, z: cell.z };
-      break;
-    case 'hole':
-      holePos = { x: cell.x, z: cell.z };
-      break;
-    case 'eraser':
-      delete pieces[`${cell.x},${cell.z}`];
-      break;
-  }
-  render();
-}
-
-// ============================================================
-// EXPORT
-// ============================================================
-function exportCourse() {
+window.exportCourse = function() {
   const name = document.getElementById('course-name').value || 'Untitled';
   const par = parseInt(document.getElementById('course-par').value) || 3;
-
-  let pieceLines = [];
+  const pieceLines = [];
   const sorted = Object.entries(pieces).sort((a, b) => {
     const [ax, az] = a[0].split(',').map(Number);
     const [bx, bz] = b[0].split(',').map(Number);
     return az !== bz ? az - bz : ax - bx;
   });
-
   for (const [key, piece] of sorted) {
     const [x, z] = key.split(',').map(Number);
     if (piece.rotation !== 0) {
@@ -832,51 +753,36 @@ function exportCourse() {
       pieceLines.push(`                PiecePlacement(model: "${piece.model}", x: ${x}, z: ${z}),`);
     }
   }
-
-  const swift = `        CourseDefinition(
-            name: "${name}",
-            par: ${par},
-            pieces: [
-${pieceLines.join('\n')}
-            ],
-            ballStart: GridPosition(x: ${ballStart.x}, z: ${ballStart.z}),
-            holePosition: GridPosition(x: ${holePos.x}, z: ${holePos.z})
-        ),`;
-
+  const swift = `        CourseDefinition(\n            name: "${name}",\n            par: ${par},\n            pieces: [\n${pieceLines.join('\n')}\n            ],\n            ballStart: GridPosition(x: ${ballStart.x}, z: ${ballStart.z}),\n            holePosition: GridPosition(x: ${holePos.x}, z: ${holePos.z})\n        ),`;
   document.getElementById('export-title').textContent = 'Swift CourseDefinition';
   document.getElementById('export-text').value = swift;
   document.getElementById('export-modal').classList.add('visible');
-}
+};
 
-function exportJSON() {
+window.exportJSON = function() {
   const name = document.getElementById('course-name').value || 'Untitled';
   const par = parseInt(document.getElementById('course-par').value) || 3;
-
   const piecesArray = [];
   for (const [key, piece] of Object.entries(pieces)) {
     const [x, z] = key.split(',').map(Number);
     piecesArray.push({ model: piece.model, position: { x, z }, rotation: piece.rotation });
   }
   piecesArray.sort((a, b) => a.position.z !== b.position.z ? a.position.z - b.position.z : a.position.x - b.position.x);
-
   const json = JSON.stringify({
-    name,
-    par,
+    name, par,
     pieces: piecesArray,
     ballStart: { x: ballStart.x, z: ballStart.z },
     holePosition: { x: holePos.x, z: holePos.z },
     holeModel: 'hole-round'
   }, null, 2);
-
   document.getElementById('export-title').textContent = 'JSON Course';
   document.getElementById('export-text').value = json;
   document.getElementById('export-modal').classList.add('visible');
-}
+};
 
-function importJSON() {
+window.importJSON = function() {
   const input = prompt('Paste JSON course definition:');
   if (!input) return;
-
   try {
     const data = JSON.parse(input);
     pieces = {};
@@ -885,59 +791,197 @@ function importJSON() {
       const z = p.position ? p.position.z : p.z;
       pieces[`${x},${z}`] = { model: p.model, rotation: p.rotation || 0 };
     }
-    if (data.ballStart) {
-      ballStart = { x: data.ballStart.x, z: data.ballStart.z };
-    }
-    if (data.holePosition) {
-      holePos = { x: data.holePosition.x, z: data.holePosition.z };
-    }
+    if (data.ballStart) ballStart = { x: data.ballStart.x, z: data.ballStart.z };
+    if (data.holePosition) holePos = { x: data.holePosition.x, z: data.holePosition.z };
     document.getElementById('course-name').value = data.name || 'Imported';
     document.getElementById('course-par').value = data.par || 3;
-    render();
+    rebuildScene();
   } catch (e) {
     alert('Invalid JSON: ' + e.message);
   }
-}
+};
 
-function copyExport() {
+window.copyExport = function() {
   const text = document.getElementById('export-text');
   text.select();
   navigator.clipboard.writeText(text.value);
-  // Flash the button
   const btn = event.target;
   btn.textContent = 'Copied!';
   setTimeout(() => btn.textContent = 'Copy to Clipboard', 1500);
-}
+};
 
-function closeExport() {
+window.closeExport = function() {
   document.getElementById('export-modal').classList.remove('visible');
-}
+};
 
-function clearAll() {
+window.clearAll = function() {
   if (!confirm('Clear all pieces?')) return;
   pieces = {};
   ballStart = { x: 0, z: 0 };
   holePos = { x: 2, z: 2 };
-  render();
+  rebuildScene();
+};
+
+// ============================================================
+// MOUSE INTERACTION
+// ============================================================
+function getGridCellFromMouse(event) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObject(groundPlane);
+  if (intersects.length > 0) {
+    const p = intersects[0].point;
+    return { x: Math.floor(p.x), z: Math.floor(p.z) };
+  }
+  return null;
+}
+
+let isPanning = false;
+let panStart = new THREE.Vector2();
+let panTargetStart = new THREE.Vector3();
+
+renderer.domElement.addEventListener('mousedown', (e) => {
+  if (e.button === 1 || (e.button === 0 && e.altKey)) {
+    isPanning = true;
+    panStart.set(e.clientX, e.clientY);
+    panTargetStart.copy(cameraTarget);
+    e.preventDefault();
+    return;
+  }
+  if (e.button === 0) {
+    const cell = getGridCellFromMouse(e);
+    if (cell) placeAtCell(cell);
+  }
+  if (e.button === 2) {
+    const cell = getGridCellFromMouse(e);
+    if (cell) {
+      delete pieces[`${cell.x},${cell.z}`];
+      removePieceFromScene(cell.x, cell.z);
+    }
+  }
+});
+
+renderer.domElement.addEventListener('mousemove', (e) => {
+  if (isPanning) {
+    const dx = (e.clientX - panStart.x) * 0.02;
+    const dy = (e.clientY - panStart.y) * 0.02;
+    const angle = currentCamAngle;
+    cameraTarget.x = panTargetStart.x - dx * Math.cos(angle) - dy * Math.sin(angle);
+    cameraTarget.z = panTargetStart.z + dx * Math.sin(angle) - dy * Math.cos(angle);
+    return;
+  }
+  const cell = getGridCellFromMouse(e);
+  if (cell) {
+    hoverCell = cell;
+    document.getElementById('coords').textContent = `x: ${cell.x}, z: ${cell.z}`;
+    updateHoverMarker(cell.x, cell.z);
+  } else {
+    hoverCell = null;
+    updateHoverMarker(null);
+  }
+});
+
+renderer.domElement.addEventListener('mouseup', () => { isPanning = false; });
+renderer.domElement.addEventListener('mouseleave', () => { isPanning = false; hoverCell = null; updateHoverMarker(null); });
+
+renderer.domElement.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  camera.zoom = Math.max(0.3, Math.min(4, camera.zoom + (e.deltaY > 0 ? -0.05 : 0.05)));
+  camera.updateProjectionMatrix();
+}, { passive: false });
+
+renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
+async function placeAtCell(cell) {
+  switch (currentTool) {
+    case 'piece':
+      pieces[`${cell.x},${cell.z}`] = { model: selectedPiece, rotation: pieceRotation };
+      await placePieceInScene(cell.x, cell.z, { model: selectedPiece, rotation: pieceRotation });
+      break;
+    case 'ball':
+      ballStart = { x: cell.x, z: cell.z };
+      updateBallMarker();
+      break;
+    case 'hole':
+      holePos = { x: cell.x, z: cell.z };
+      updateHoleMarker();
+      break;
+    case 'eraser':
+      delete pieces[`${cell.x},${cell.z}`];
+      removePieceFromScene(cell.x, cell.z);
+      break;
+  }
+}
+
+// ============================================================
+// KEYBOARD
+// ============================================================
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  switch (e.key) {
+    case 'r': case 'R': window.cyclePieceRotation(1); break;
+    case 'q': case 'Q': window.cyclePieceRotation(-1); break;
+    case '1': window.setViewAngle(0); break;
+    case '2': window.setViewAngle(1); break;
+    case '3': window.setViewAngle(2); break;
+    case '4': window.setViewAngle(3); break;
+    case 'b': case 'B': window.selectTool('ball'); break;
+    case 'h': case 'H': window.selectTool('hole'); break;
+    case 'e': case 'E': window.selectTool('eraser'); break;
+    case 'f': case 'F': fitCameraToScene(); break;
+    case 'Escape': window.closeExport(); break;
+  }
+});
+
+// ============================================================
+// RESIZE
+// ============================================================
+function onResize() {
+  const w = viewport.clientWidth;
+  const h = viewport.clientHeight;
+  aspect = w / h;
+  camera.left = -frustumSize * aspect / 2;
+  camera.right = frustumSize * aspect / 2;
+  camera.top = frustumSize / 2;
+  camera.bottom = -frustumSize / 2;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+window.addEventListener('resize', onResize);
+
+// ============================================================
+// ANIMATION LOOP
+// ============================================================
+function animate() {
+  requestAnimationFrame(animate);
+  updateCameraPosition(false);
+  renderer.render(scene, camera);
 }
 
 // ============================================================
 // INIT
 // ============================================================
-buildPalette();
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+async function init() {
+  buildPalette();
+  await loadTexture();
 
-// Load "First Putt" as default
-pieces = {
-  '0,0': { model: 'end', rotation: 0 },
-  '0,1': { model: 'straight', rotation: 0 },
-  '0,2': { model: 'straight', rotation: 0 },
-  '0,3': { model: 'end', rotation: 0 },
-};
-ballStart = { x: 0, z: 0 };
-holePos = { x: 0, z: 3 };
-render();
+  pieces = {
+    '0,0': { model: 'end', rotation: 0 },
+    '0,1': { model: 'straight', rotation: 0 },
+    '0,2': { model: 'straight', rotation: 0 },
+    '0,3': { model: 'end', rotation: 0 },
+  };
+  ballStart = { x: 0, z: 0 };
+  holePos = { x: 0, z: 3 };
+
+  await rebuildScene();
+  updateCameraPosition(true);
+  animate();
+}
+
+init();
 </script>
 
 </body>

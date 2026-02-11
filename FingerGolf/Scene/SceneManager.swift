@@ -8,6 +8,15 @@ class SceneManager {
 
     private var courseRootNode: SCNNode?
 
+    // 4 fixed isometric angles: NE, SE, SW, NW
+    private let isometricAngles: [Float] = [
+        0,                      // NE
+        Float.pi / 2,           // SE
+        Float.pi,               // SW
+        Float.pi * 3 / 2        // NW
+    ]
+    private(set) var currentAngleIndex: Int = 0
+
     init() {
         scene = SCNScene()
 
@@ -40,28 +49,29 @@ class SceneManager {
     // MARK: - Lighting
 
     private func setupLighting() {
-        // Directional "sun" light - warm, casts shadows
+        // Top-down directional light - looks good from all 4 angles
         let sunNode = SCNNode()
         sunNode.name = "sun_light"
         sunNode.light = SCNLight()
         sunNode.light!.type = .directional
         sunNode.light!.color = UIColor(white: 1.0, alpha: 1.0)
-        sunNode.light!.intensity = 1000
+        sunNode.light!.intensity = 800
         sunNode.light!.castsShadow = true
         sunNode.light!.shadowMode = .deferred
         sunNode.light!.shadowSampleCount = 8
         sunNode.light!.shadowRadius = 3.0
-        sunNode.light!.shadowColor = UIColor(white: 0, alpha: 0.3)
-        sunNode.eulerAngles = SCNVector3(-Float.pi / 3, Float.pi / 4, 0)
+        sunNode.light!.shadowColor = UIColor(white: 0, alpha: 0.25)
+        // Nearly top-down so shadows are short and consistent from all angles
+        sunNode.eulerAngles = SCNVector3(-Float.pi / 2.5, 0, 0)
         scene.rootNode.addChildNode(sunNode)
 
-        // Ambient fill light
+        // Strong ambient fill so no dark sides from any angle
         let ambientNode = SCNNode()
         ambientNode.name = "ambient_light"
         ambientNode.light = SCNLight()
         ambientNode.light!.type = .ambient
-        ambientNode.light!.color = UIColor(red: 0.6, green: 0.65, blue: 0.7, alpha: 1.0)
-        ambientNode.light!.intensity = 500
+        ambientNode.light!.color = UIColor(red: 0.75, green: 0.78, blue: 0.82, alpha: 1.0)
+        ambientNode.light!.intensity = 600
         scene.rootNode.addChildNode(ambientNode)
     }
 
@@ -118,13 +128,29 @@ class SceneManager {
         courseRootNode = nil
     }
 
-    // MARK: - Camera Rotation
+    // MARK: - Camera Rotation (4 fixed isometric angles)
 
-    func rotateCameraOrbit(by angle: Float) {
-        cameraOrbitNode.eulerAngles.y += angle
+    func rotateToNextAngle() {
+        currentAngleIndex = (currentAngleIndex + 1) % 4
+        animateToCurrentAngle()
     }
 
-    func setCameraOrbitAngle(_ angle: Float) {
-        cameraOrbitNode.eulerAngles.y = angle
+    func rotateToPreviousAngle() {
+        currentAngleIndex = (currentAngleIndex + 3) % 4
+        animateToCurrentAngle()
+    }
+
+    private func animateToCurrentAngle() {
+        let targetAngle = isometricAngles[currentAngleIndex]
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = 0.35
+        SCNTransaction.animationTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        cameraOrbitNode.eulerAngles.y = targetAngle
+        SCNTransaction.commit()
+    }
+
+    func setCameraAngleIndex(_ index: Int) {
+        currentAngleIndex = index % 4
+        cameraOrbitNode.eulerAngles.y = isometricAngles[currentAngleIndex]
     }
 }

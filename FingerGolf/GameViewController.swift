@@ -69,13 +69,26 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     // MARK: - Gesture Setup
 
     private func setupGestures() {
-        // Pan gesture for club aim and camera rotation
+        // Pan gesture for club aim
         let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
         scnView.addGestureRecognizer(panGesture)
 
         // Tap gesture for club placement
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
         scnView.addGestureRecognizer(tapGesture)
+
+        // Swipe gestures for camera rotation between 4 isometric angles
+        let swipeLeft = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
+        swipeLeft.direction = .left
+        scnView.addGestureRecognizer(swipeLeft)
+
+        let swipeRight = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
+        swipeRight.direction = .right
+        scnView.addGestureRecognizer(swipeRight)
+
+        // Let pan and swipe coexist
+        panGesture.require(toFail: swipeLeft)
+        panGesture.require(toFail: swipeRight)
     }
 
     // MARK: - Touch Handling
@@ -108,12 +121,6 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
                 if let worldPosition = hitTestCoursePosition(at: location) {
                     gameCoordinator.handleAimUpdate(toward: worldPosition)
                 }
-            } else if gameCoordinator.gameState == .playing {
-                // Camera rotation when not aiming
-                let translation = gesture.translation(in: scnView)
-                let rotationSpeed: Float = 0.005
-                gameCoordinator.sceneManager.rotateCameraOrbit(by: Float(translation.x) * rotationSpeed)
-                gesture.setTranslation(.zero, in: scnView)
             }
 
         case .ended, .cancelled:
@@ -132,6 +139,16 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
 
         default:
             break
+        }
+    }
+
+    @objc private func handleSwipe(_ gesture: UISwipeGestureRecognizer) {
+        guard gameCoordinator.gameState == .playing else { return }
+
+        if gesture.direction == .left {
+            gameCoordinator.sceneManager.rotateToNextAngle()
+        } else if gesture.direction == .right {
+            gameCoordinator.sceneManager.rotateToPreviousAngle()
         }
     }
 

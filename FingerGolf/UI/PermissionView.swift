@@ -13,11 +13,11 @@ struct PermissionView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 8) {
-                Text("Camera Access Required")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                Text("CAMERA ACCESS REQUIRED")
+                    .font(.custom("Noteworthy-Bold", size: 22))
 
-                Text("FingerGolf uses your front camera to track hand gestures for swinging the golf club. No video is recorded or stored.")
-                    .font(.system(size: 16, weight: .regular, design: .rounded))
+                Text("FINGERGOLF USES YOUR FRONT CAMERA TO TRACK HAND GESTURES FOR SWINGING THE GOLF CLUB.")
+                    .font(.custom("Noteworthy-Light", size: 14))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
@@ -27,17 +27,14 @@ struct PermissionView: View {
                 Button {
                     openSettings()
                 } label: {
-                    Text("Open Settings")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                    Text("OPEN SETTINGS")
+                        .font(.custom("Noteworthy-Bold", size: 18))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(
-                            LinearGradient(
-                                colors: [.blue, .cyan],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                            Image("GameUI/button_rectangle_depth_gradient")
+                                .resizable()
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
@@ -45,8 +42,8 @@ struct PermissionView: View {
                 Button {
                     onContinueWithoutCamera()
                 } label: {
-                    Text("Continue with Touch Controls")
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                    Text("CONTINUE WITH TOUCH CONTROLS")
+                        .font(.custom("Noteworthy-Bold", size: 14))
                         .foregroundStyle(.secondary)
                 }
             }

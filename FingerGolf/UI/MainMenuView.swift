@@ -13,8 +13,8 @@ struct MainMenuView: View {
 
             // Title
             VStack(spacing: 8) {
-                Text("FingerGolf")
-                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                Text("FINGERGOLF")
+                    .font(.custom("Noteworthy-Bold", size: 48))
                     .foregroundStyle(
                         LinearGradient(
                             colors: [.green, .mint],
@@ -23,17 +23,19 @@ struct MainMenuView: View {
                         )
                     )
 
-                Text("Mini Golf with Hand Gestures")
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                Text("MINI GOLF WITH HAND GESTURES")
+                    .font(.custom("Noteworthy-Light", size: 14))
                     .foregroundStyle(.secondary)
+                    .tracking(2)
             }
 
             Spacer()
 
             // Course selection
             VStack(spacing: 12) {
-                Text("Select Course")
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                Text("SELECT COURSE")
+                    .font(.custom("Noteworthy-Bold", size: 18))
+                    .tracking(1)
 
                 ForEach(Array(courses.enumerated()), id: \.offset) { index, course in
                     Button {
@@ -41,19 +43,19 @@ struct MainMenuView: View {
                     } label: {
                         HStack {
                             Text("\(index + 1)")
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .font(.custom("Noteworthy-Bold", size: 14))
                                 .frame(width: 28, height: 28)
                                 .background(selectedCourse == index ? Color.green : Color.gray.opacity(0.3))
                                 .foregroundStyle(selectedCourse == index ? .white : .primary)
                                 .clipShape(Circle())
 
-                            Text(course.name)
-                                .font(.system(size: 17, weight: .medium, design: .rounded))
+                            Text(course.name.uppercased())
+                                .font(.custom("Noteworthy-Bold", size: 16))
 
                             Spacer()
 
-                            Text("Par \(course.par)")
-                                .font(.system(size: 14, weight: .regular, design: .rounded))
+                            Text("PAR \(course.par)")
+                                .font(.custom("Noteworthy-Light", size: 13))
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.horizontal, 16)
@@ -76,21 +78,18 @@ struct MainMenuView: View {
 
             Spacer()
 
-            // Play button
+            // Play button with UI Pack asset
             Button {
                 onStartCourse(selectedCourse)
             } label: {
-                Text("Play")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                Text("PLAY")
+                    .font(.custom("Noteworthy-Bold", size: 22))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
-                        LinearGradient(
-                            colors: [.green, .mint],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
+                        Image("GameUI/button_rectangle_depth_gradient")
+                            .resizable()
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             }

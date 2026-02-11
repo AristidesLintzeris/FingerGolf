@@ -15,17 +15,17 @@ struct ScoreCardView: View {
 
             VStack(spacing: 20) {
                 // Title
-                Text("Course Complete!")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                Text("COURSE COMPLETE!")
+                    .font(.custom("Noteworthy-Bold", size: 32))
 
                 // Score summary
                 VStack(spacing: 4) {
-                    Text("Total: \(totalStrokes) strokes")
-                        .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    Text("TOTAL: \(totalStrokes) STROKES")
+                        .font(.custom("Noteworthy-Bold", size: 20))
 
-                    Text(totalRelativeToPar == 0 ? "Even par" :
-                            (totalRelativeToPar > 0 ? "+\(totalRelativeToPar) over par" : "\(totalRelativeToPar) under par"))
-                        .font(.system(size: 17, weight: .medium, design: .rounded))
+                    Text(totalRelativeToPar == 0 ? "EVEN PAR" :
+                            (totalRelativeToPar > 0 ? "+\(totalRelativeToPar) OVER PAR" : "\(totalRelativeToPar) UNDER PAR"))
+                        .font(.custom("Noteworthy-Bold", size: 16))
                         .foregroundStyle(totalRelativeToPar <= 0 ? .green : .orange)
                 }
 
@@ -43,7 +43,7 @@ struct ScoreCardView: View {
                         Text("Result")
                             .frame(width: 80, alignment: .trailing)
                     }
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(.custom("Noteworthy-Bold", size: 12))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
@@ -64,7 +64,7 @@ struct ScoreCardView: View {
                                 .frame(width: 80, alignment: .trailing)
                                 .foregroundStyle(score.relativeToPar <= 0 ? .green : .orange)
                         }
-                        .font(.system(size: 15, weight: .regular, design: .rounded))
+                        .font(.custom("Noteworthy-Bold", size: 14))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 6)
                     }
@@ -76,8 +76,8 @@ struct ScoreCardView: View {
                 Button {
                     onReturnToMenu()
                 } label: {
-                    Text("Return to Menu")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                    Text("RETURN TO MENU")
+                        .font(.custom("Noteworthy-Bold", size: 18))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
