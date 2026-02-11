@@ -34,8 +34,9 @@ class HandTrackingCoordinator: ObservableObject {
 
     // MARK: - Configuration
 
-    private let pinchThreshold: CGFloat = 0.08    // normalized distance to consider "pinching"
-    private let flickMinVelocity: CGFloat = 0.15   // min separation velocity for a flick
+    var pinchThreshold: CGFloat = 0.08    // normalized distance to consider "pinching"
+    var flickMinVelocity: CGFloat = 0.15   // min separation velocity for a flick
+    var powerPreset: PowerPreset = .medium
     private let handLostTimeout: TimeInterval = 0.5
 
     // MARK: - Internal State
@@ -176,7 +177,8 @@ class HandTrackingCoordinator: ObservableObject {
         // Sigmoid-like mapping: slow flick → low power, fast flick → high power
         let maxVelocity: CGFloat = 2.0
         let normalized = min(velocity / maxVelocity, 1.0)
-        return pow(normalized, 0.7) // curve for better control feel
+        let basePower = pow(normalized, 0.7) // curve for better control feel
+        return min(basePower * powerPreset.multiplier, 1.0)
     }
 
     // MARK: - Coordinate Conversion
@@ -215,6 +217,12 @@ class HandTrackingCoordinator: ObservableObject {
             handState = .handDetected
         }
         velocityHistory.removeAll()
+        velocityKalman.reset()
+    }
+
+    func updateKalman(q: Double, r: Double) {
+        velocityKalman.q = q
+        velocityKalman.r = r
         velocityKalman.reset()
     }
 }

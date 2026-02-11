@@ -25,6 +25,13 @@ class HoleDetector {
         let dz = ballNode.position.z - holePosition.z
         let distance = sqrt(dx * dx + dz * dz)
 
+        // Enhanced capture: very close to center allows faster balls (hole-in-one support)
+        let enhancedCenterRadius: Float = 0.025
+        let enhancedSpeedLimit: Float = 1.5
+        if distance < enhancedCenterRadius && speed < enhancedSpeedLimit {
+            return true
+        }
+
         return speed < captureVelocityThreshold && distance < captureDistanceThreshold
     }
 }

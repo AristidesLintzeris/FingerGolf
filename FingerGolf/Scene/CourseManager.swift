@@ -62,12 +62,12 @@ class CourseManager {
     // MARK: - Built-in Courses
 
     static let builtInCourses: [CourseDefinition] = [
-        // Course 1: "First Putt" - Straight line
+        // Level 1: "The Putt" - Par 1, straight line
         CourseDefinition(
-            name: "First Putt",
-            par: 2,
+            name: "The Putt",
+            par: 1,
             pieces: [
-                PiecePlacement(model: "end", x: 0, z: 0),
+                PiecePlacement(model: "end", x: 0, z: 0, rotation: 180),
                 PiecePlacement(model: "straight", x: 0, z: 1),
                 PiecePlacement(model: "straight", x: 0, z: 2),
                 PiecePlacement(model: "end", x: 0, z: 3),
@@ -75,68 +75,128 @@ class CourseManager {
             ballStart: GridPosition(x: 0, z: 0),
             holePosition: GridPosition(x: 0, z: 3)
         ),
-        // Course 2: "The Bend" - L-shaped with a corner
+        // Level 2: "Split Path" - Par 2, windmill + castle + split paths
         CourseDefinition(
-            name: "The Bend",
-            par: 3,
+            name: "Split Path",
+            par: 2,
             pieces: [
-                PiecePlacement(model: "end", x: 0, z: 0),
-                PiecePlacement(model: "straight", x: 0, z: 1),
-                PiecePlacement(model: "corner", x: 0, z: 2, rotation: 0),
-                PiecePlacement(model: "straight", x: 1, z: 2),
-                PiecePlacement(model: "end", x: 2, z: 2),
+                PiecePlacement(model: "end", x: 0, z: 0, rotation: 180),
+                PiecePlacement(model: "windmill", x: 0, z: 1, rotation: 180),
+                PiecePlacement(model: "round-corner-a", x: -2, z: 2, rotation: 180),
+                PiecePlacement(model: "castle", x: -1, z: 2, rotation: 90),
+                PiecePlacement(model: "split-t", x: 0, z: 2),
+                PiecePlacement(model: "split-start", x: 1, z: 2, rotation: 270),
+                PiecePlacement(model: "round-corner-a", x: 2, z: 2, rotation: 90),
+                PiecePlacement(model: "round-corner-a", x: -2, z: 3, rotation: 270),
+                PiecePlacement(model: "spline-default", x: -1, z: 3, rotation: 90),
+                PiecePlacement(model: "wall-left", x: 0, z: 3, rotation: 90),
+                PiecePlacement(model: "split-start", x: 1, z: 3, rotation: 90),
+                PiecePlacement(model: "round-corner-a", x: 2, z: 3),
             ],
             ballStart: GridPosition(x: 0, z: 0),
-            holePosition: GridPosition(x: 2, z: 2)
+            holePosition: GridPosition(x: 0, z: 3)
         ),
-        // Course 3: "Obstacle Run" - Straight with obstacle
+        // Level 3: "The Gauntlet" - Par 3, windmill + castle + skew corners + gaps
         CourseDefinition(
-            name: "Obstacle Run",
+            name: "The Gauntlet",
             par: 3,
             pieces: [
-                PiecePlacement(model: "end", x: 0, z: 0),
-                PiecePlacement(model: "straight", x: 0, z: 1),
-                PiecePlacement(model: "straight", x: 0, z: 2),
-                PiecePlacement(model: "straight", x: 0, z: 3),
-                PiecePlacement(model: "straight", x: 0, z: 4),
-                PiecePlacement(model: "end", x: 0, z: 5),
+                PiecePlacement(model: "end", x: 0, z: 0, rotation: 180),
+                PiecePlacement(model: "windmill", x: 0, z: 1, rotation: 180),
+                PiecePlacement(model: "skew-corner", x: -2, z: 2, rotation: 180),
+                PiecePlacement(model: "castle", x: -1, z: 2, rotation: 90),
+                PiecePlacement(model: "split-t", x: 0, z: 2),
+                PiecePlacement(model: "gap", x: 1, z: 2, rotation: 90),
+                PiecePlacement(model: "skew-corner", x: 2, z: 2, rotation: 90),
+                PiecePlacement(model: "skew-corner", x: -2, z: 3, rotation: 270),
+                PiecePlacement(model: "spline-default", x: -1, z: 3, rotation: 90),
+                PiecePlacement(model: "wall-left", x: 0, z: 3, rotation: 90),
+                PiecePlacement(model: "split-start", x: 1, z: 3, rotation: 90),
+                PiecePlacement(model: "skew-corner", x: 2, z: 3),
             ],
             ballStart: GridPosition(x: 0, z: 0),
-            holePosition: GridPosition(x: 0, z: 5)
+            holePosition: GridPosition(x: 0, z: 3)
         ),
-        // Course 4: "Up and Over" - Ramp course
+        // Level 4: "Wavy Greens" - Par 4, round corner-b variations
         CourseDefinition(
-            name: "Up and Over",
+            name: "Wavy Greens",
             par: 4,
             pieces: [
-                PiecePlacement(model: "end", x: 0, z: 0),
-                PiecePlacement(model: "straight", x: 0, z: 1),
-                PiecePlacement(model: "ramp-low", x: 0, z: 2),
-                PiecePlacement(model: "straight", x: 0, z: 3),
-                PiecePlacement(model: "ramp-low", x: 0, z: 4, rotation: 180),
-                PiecePlacement(model: "straight", x: 0, z: 5),
-                PiecePlacement(model: "end", x: 0, z: 6),
+                PiecePlacement(model: "corner", x: 0, z: 0, rotation: 180),
+                PiecePlacement(model: "round-corner-b", x: 1, z: 0, rotation: 90),
+                PiecePlacement(model: "round-corner-b", x: 2, z: 0, rotation: 180),
+                PiecePlacement(model: "round-corner-b", x: 3, z: 0, rotation: 90),
+                PiecePlacement(model: "corner", x: 4, z: 0, rotation: 90),
+                PiecePlacement(model: "corner", x: 0, z: 1, rotation: 270),
+                PiecePlacement(model: "round-corner-b", x: 1, z: 1, rotation: 270),
+                PiecePlacement(model: "round-corner-b", x: 2, z: 1),
+                PiecePlacement(model: "round-corner-b", x: 3, z: 1, rotation: 270),
+                PiecePlacement(model: "round-corner-b", x: 4, z: 1),
             ],
-            ballStart: GridPosition(x: 0, z: 0),
-            holePosition: GridPosition(x: 0, z: 6)
+            ballStart: GridPosition(x: 0, z: 1),
+            holePosition: GridPosition(x: 4, z: 0)
         ),
-        // Course 5: "Windmill Challenge" - S-curve with windmill
+        // Level 5: "Mountain Pass" - Par 5, ramps + hills + square corners
         CourseDefinition(
-            name: "Windmill Challenge",
+            name: "Mountain Pass",
             par: 5,
             pieces: [
-                PiecePlacement(model: "end", x: 0, z: 0),
-                PiecePlacement(model: "straight", x: 0, z: 1),
-                PiecePlacement(model: "corner", x: 0, z: 2, rotation: 0),
-                PiecePlacement(model: "straight", x: 1, z: 2),
-                PiecePlacement(model: "straight", x: 2, z: 2),
-                PiecePlacement(model: "corner", x: 3, z: 2, rotation: 90),
-                PiecePlacement(model: "straight", x: 3, z: 3),
-                PiecePlacement(model: "straight", x: 3, z: 4),
-                PiecePlacement(model: "end", x: 3, z: 5),
+                PiecePlacement(model: "corner", x: -4, z: -1, rotation: 180),
+                PiecePlacement(model: "ramp-low", x: -3, z: -1, rotation: 90),
+                PiecePlacement(model: "ramp-large", x: -2, z: -1, rotation: 90),
+                PiecePlacement(model: "square-corner-a", x: -1, z: -1, rotation: 180),
+                PiecePlacement(model: "ramp-large-side", x: 0, z: -1, rotation: 90),
+                PiecePlacement(model: "end", x: 1, z: -1, rotation: 270),
+                PiecePlacement(model: "straight", x: 2, z: -1, rotation: 270),
+                PiecePlacement(model: "round-corner-b", x: 3, z: -1, rotation: 90),
+                PiecePlacement(model: "corner", x: -4, z: 0, rotation: 270),
+                PiecePlacement(model: "ramp-square", x: -3, z: 0, rotation: 90),
+                PiecePlacement(model: "hill-round", x: -2, z: 0, rotation: 90),
+                PiecePlacement(model: "square-corner-a", x: -1, z: 0),
+                PiecePlacement(model: "round-corner-a", x: 0, z: 0, rotation: 180),
+                PiecePlacement(model: "square-corner-a", x: 1, z: 0, rotation: 90),
+                PiecePlacement(model: "round-corner-b", x: 2, z: 0, rotation: 180),
+                PiecePlacement(model: "corner", x: 3, z: 0),
+                PiecePlacement(model: "round-corner-a", x: 0, z: 1, rotation: 270),
+                PiecePlacement(model: "side", x: 1, z: 1, rotation: 270),
+                PiecePlacement(model: "round-corner-a", x: 2, z: 1),
+            ],
+            ballStart: GridPosition(x: -4, z: 0),
+            holePosition: GridPosition(x: 3, z: 0)
+        ),
+        // Level 6: "The Fortress" - Par 6, multi-level with ramps + blocks
+        CourseDefinition(
+            name: "The Fortress",
+            par: 6,
+            pieces: [
+                PiecePlacement(model: "corner", x: 4, z: -3, rotation: 180),
+                PiecePlacement(model: "corner", x: 5, z: -3, rotation: 90),
+                PiecePlacement(model: "corner", x: 4, z: -2, rotation: 270),
+                PiecePlacement(model: "corner", x: 5, z: -2, rotation: 90),
+                PiecePlacement(model: "ramp", x: 5, z: -1),
+                PiecePlacement(model: "end", x: 0, z: 0, rotation: 270),
+                PiecePlacement(model: "corner", x: 1, z: 0, rotation: 90),
+                PiecePlacement(model: "skew-corner", x: 2, z: 0, rotation: 180),
+                PiecePlacement(model: "skew-corner", x: 3, z: 0, rotation: 90),
+                PiecePlacement(model: "block", x: 4, z: 0, rotation: 90),
+                PiecePlacement(model: "ramp", x: 5, z: 0, rotation: 180),
+                PiecePlacement(model: "end", x: 6, z: 0, rotation: 180),
+                PiecePlacement(model: "corner", x: 0, z: 1, rotation: 180),
+                PiecePlacement(model: "corner", x: 1, z: 1),
+                PiecePlacement(model: "ramp", x: 2, z: 1),
+                PiecePlacement(model: "skew-corner", x: 3, z: 1, rotation: 270),
+                PiecePlacement(model: "straight", x: 4, z: 1, rotation: 270),
+                PiecePlacement(model: "side", x: 5, z: 1, rotation: 270),
+                PiecePlacement(model: "corner", x: 6, z: 1),
+                PiecePlacement(model: "corner", x: 0, z: 2, rotation: 270),
+                PiecePlacement(model: "square-corner-a", x: 1, z: 2, rotation: 90),
+                PiecePlacement(model: "ramp", x: 2, z: 2, rotation: 180),
+                PiecePlacement(model: "block", x: 0, z: 3, rotation: 270),
+                PiecePlacement(model: "corner", x: 1, z: 3, rotation: 270),
+                PiecePlacement(model: "corner", x: 2, z: 3),
             ],
             ballStart: GridPosition(x: 0, z: 0),
-            holePosition: GridPosition(x: 3, z: 5)
+            holePosition: GridPosition(x: 5, z: -3)
         ),
     ]
 }

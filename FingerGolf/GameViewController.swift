@@ -24,6 +24,13 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     private var menuHostingController: UIHostingController<MainMenuView>?
     private var scoreCardHostingController: UIHostingController<ScoreCardView>?
     private var permissionHostingController: UIHostingController<PermissionView>?
+    private var levelSelectHostingController: UIHostingController<LevelSelectView>?
+    private var pauseHostingController: UIHostingController<PauseMenuView>?
+    private var settingsHostingController: UIHostingController<SettingsView>?
+
+    // Pinch zoom
+    private let minOrthoScale: Double = 1.5
+    private let maxOrthoScale: Double = 8.0
 
     // MARK: - Lifecycle
 
@@ -85,6 +92,10 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
         let swipeRight = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
         swipeRight.direction = .right
         scnView.addGestureRecognizer(swipeRight)
+
+        // Pinch gesture for zoom
+        let pinchGesture = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
+        scnView.addGestureRecognizer(pinchGesture)
 
         // Let pan and swipe coexist
         panGesture.require(toFail: swipeLeft)
@@ -152,6 +163,18 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
         }
     }
 
+    @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
+        guard gameCoordinator.gameState == .playing else { return }
+        guard let camera = gameCoordinator.sceneManager.cameraNode.camera else { return }
+
+        if gesture.state == .changed {
+            // Pinch out (scale > 1) = zoom in = smaller ortho scale
+            let newScale = camera.orthographicScale / Double(gesture.scale)
+            camera.orthographicScale = min(max(newScale, minOrthoScale), maxOrthoScale)
+            gesture.scale = 1.0
+        }
+    }
+
     // MARK: - Hit Testing
 
     private func hitTestCoursePosition(at screenPoint: CGPoint) -> SCNVector3? {
@@ -190,6 +213,9 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
             onNextHole: { [weak self] in self?.gameCoordinator.advanceToNextHole() },
             onReturnToMenu: { [weak self] in
                 self?.gameCoordinator.returnToMenu()
+            },
+            onPause: { [weak self] in
+                self?.gameCoordinator.pauseGame()
             }
         )
         let hc = UIHostingController(rootView: hudView)
@@ -219,11 +245,11 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
         dismissAllOverlays()
 
         let menuView = MainMenuView(
-            courses: gameCoordinator.courseManager.courses,
-            onStartCourse: { [weak self] index in
-                self?.dismissMenu()
-                self?.gameCoordinator.startCourse(at: index)
-                self?.refreshHUD()
+            onStartPressed: { [weak self] in
+                self?.gameCoordinator.showLevelSelect()
+            },
+            onSettingsPressed: { [weak self] in
+                self?.showSettings(returnTo: .mainMenu)
             }
         )
         let mc = UIHostingController(rootView: menuView)
@@ -249,6 +275,118 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
         menuHostingController?.view.removeFromSuperview()
         menuHostingController?.removeFromParent()
         menuHostingController = nil
+    }
+
+    // MARK: - Level Select
+
+    private func showLevelSelect() {
+        dismissLevelSelect()
+
+        let levelView = LevelSelectView(
+            courses: gameCoordinator.courseManager.courses,
+            progressManager: gameCoordinator.progressManager,
+            onSelectLevel: { [weak self] index in
+                self?.dismissMenu()
+                self?.dismissLevelSelect()
+                self?.gameCoordinator.startCourse(at: index)
+                self?.refreshHUD()
+            },
+            onBack: { [weak self] in
+                self?.dismissLevelSelect()
+                self?.gameCoordinator.returnToMenu()
+            }
+        )
+        let lc = UIHostingController(rootView: levelView)
+        lc.view.backgroundColor = UIColor.black.withAlphaComponent(0.6)
+        addChild(lc)
+        view.addSubview(lc.view)
+        lc.view.frame = view.bounds
+        lc.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        lc.didMove(toParent: self)
+        levelSelectHostingController = lc
+    }
+
+    private func dismissLevelSelect() {
+        levelSelectHostingController?.willMove(toParent: nil)
+        levelSelectHostingController?.view.removeFromSuperview()
+        levelSelectHostingController?.removeFromParent()
+        levelSelectHostingController = nil
+    }
+
+    // MARK: - Pause Menu
+
+    private func showPauseMenu() {
+        dismissPauseMenu()
+
+        let pauseView = PauseMenuView(
+            onResume: { [weak self] in
+                self?.gameCoordinator.unpauseGame()
+            },
+            onRestart: { [weak self] in
+                self?.dismissPauseMenu()
+                self?.gameCoordinator.restartCurrentHole()
+                self?.refreshHUD()
+            },
+            onSettings: { [weak self] in
+                self?.showSettings(returnTo: .paused)
+            },
+            onQuit: { [weak self] in
+                self?.dismissPauseMenu()
+                self?.gameCoordinator.returnToMenu()
+            }
+        )
+        let pc = UIHostingController(rootView: pauseView)
+        pc.view.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        addChild(pc)
+        view.addSubview(pc.view)
+        pc.view.frame = view.bounds
+        pc.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        pc.didMove(toParent: self)
+        pauseHostingController = pc
+    }
+
+    private func dismissPauseMenu() {
+        pauseHostingController?.willMove(toParent: nil)
+        pauseHostingController?.view.removeFromSuperview()
+        pauseHostingController?.removeFromParent()
+        pauseHostingController = nil
+    }
+
+    // MARK: - Settings
+
+    private func showSettings(returnTo: GameState) {
+        dismissSettings()
+
+        let settingsView = SettingsView(
+            settings: gameCoordinator.settings,
+            onDone: { [weak self] in
+                self?.dismissSettings()
+                self?.gameCoordinator.applySettings()
+                switch returnTo {
+                case .mainMenu:
+                    break // Menu is still showing behind
+                case .paused:
+                    break // Pause menu is still showing behind
+                default:
+                    break
+                }
+            }
+        )
+        let sc = UIHostingController(rootView: settingsView)
+        sc.view.backgroundColor = UIColor(red: 0.1, green: 0.15, blue: 0.1, alpha: 0.95)
+        addChild(sc)
+        view.addSubview(sc.view)
+        sc.view.frame = view.bounds
+        sc.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        sc.didMove(toParent: self)
+        settingsHostingController = sc
+    }
+
+    private func dismissSettings() {
+        settingsHostingController?.willMove(toParent: nil)
+        settingsHostingController?.view.removeFromSuperview()
+        settingsHostingController?.removeFromParent()
+        settingsHostingController = nil
     }
 
     // MARK: - Score Card
@@ -311,6 +449,9 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
 
     private func dismissAllOverlays() {
         dismissMenu()
+        dismissLevelSelect()
+        dismissPauseMenu()
+        dismissSettings()
         dismissScoreCard()
         dismissPermissionView()
     }
@@ -325,8 +466,14 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
                 switch state {
                 case .mainMenu:
                     self.showMainMenu()
+                case .courseSelect:
+                    self.showLevelSelect()
                 case .playing:
+                    self.dismissPauseMenu()
+                    self.dismissLevelSelect()
                     self.refreshHUD()
+                case .paused:
+                    self.showPauseMenu()
                 case .courseComplete:
                     self.showScoreCard()
                 default:

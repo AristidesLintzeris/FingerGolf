@@ -9,6 +9,7 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
     let sceneManager = SceneManager()
     let courseManager = CourseManager()
     let settings = GameSettings()
+    let progressManager = ProgressManager()
     let turnManager = TurnManager()
     let scoringManager = ScoringManager()
     let ballController = BallController(color: "red")
@@ -159,6 +160,12 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         stopBallMonitoring()
         scoringManager.recordHoleScore(par: definition.par, strokes: turnManager.strokeCount)
 
+        progressManager.completeLevel(
+            courseManager.currentCourseIndex,
+            strokes: turnManager.strokeCount,
+            par: definition.par
+        )
+
         if courseManager.hasNextCourse {
             gameState = .holeComplete
         } else {
@@ -176,6 +183,7 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
 
     func returnToMenu() {
         stopBallMonitoring()
+        sceneManager.scene.isPaused = false
         sceneManager.clearCourse()
         ballController.ballNode.removeFromParentNode()
         clubController.reset()
@@ -183,6 +191,46 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         scoringManager.reset()
         turnManager.resetForNewHole()
         gameState = .mainMenu
+    }
+
+    func showLevelSelect() {
+        gameState = .courseSelect
+    }
+
+    func pauseGame() {
+        guard gameState == .playing else { return }
+        gameState = .paused
+        sceneManager.scene.isPaused = true
+        stopBallMonitoring()
+    }
+
+    func unpauseGame() {
+        guard gameState == .paused else { return }
+        sceneManager.scene.isPaused = false
+        startBallMonitoring()
+        gameState = .playing
+    }
+
+    func restartCurrentHole() {
+        guard let definition = courseManager.currentCourse else { return }
+        sceneManager.scene.isPaused = false
+        stopBallMonitoring()
+
+        ballController.placeBall(at: definition.ballStart.scenePosition)
+        physicsManager.setupBallPhysics(for: ballController.ballNode)
+        clubController.hideClub()
+        turnManager.resetForNewHole()
+        gameState = .playing
+        startBallMonitoring()
+    }
+
+    func applySettings() {
+        handTrackingCoordinator.pinchThreshold = settings.pinchThreshold
+        handTrackingCoordinator.flickMinVelocity = settings.flickMinVelocity
+        handTrackingCoordinator.powerPreset = settings.powerPreset
+        handTrackingCoordinator.updateKalman(q: settings.kalmanProcessNoise, r: settings.kalmanMeasurementNoise)
+        visionEngine.smoothingFactor = settings.smoothingFactor
+        visionEngine.jumpThreshold = settings.jumpThreshold
     }
 
     // MARK: - Touch Input (temporary, replaced by hand tracking later)

@@ -6,8 +6,8 @@ class KalmanScalar {
 
     private var x: Double = 0.0 // State
     private var p: Double = 1.0 // Covariance
-    private let q: Double // Process noise
-    private let r: Double // Measurement noise
+    var q: Double // Process noise
+    var r: Double // Measurement noise
 
     // MARK: - Initialization
 

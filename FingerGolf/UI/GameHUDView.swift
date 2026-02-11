@@ -8,6 +8,7 @@ struct GameHUDView: View {
 
     var onNextHole: () -> Void
     var onReturnToMenu: () -> Void
+    var onPause: () -> Void
 
     var body: some View {
         VStack {
@@ -15,22 +16,35 @@ struct GameHUDView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("HOLE \(scoringManager.currentHole)")
-                        .font(.custom("Noteworthy-Bold", size: 18))
+                        .bodyStyle(size: 18)
                     Text("PAR \(currentPar)")
-                        .font(.custom("Noteworthy-Light", size: 13))
-                        .foregroundStyle(.secondary)
+                        .lightStyle(size: 13)
                 }
 
                 Spacer()
 
+                // Pause button
+                Button(action: onPause) {
+                    Image(systemName: "pause.fill")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.5), radius: 1, x: 0.5, y: 1)
+                        .frame(width: 36, height: 36)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                }
+
+                Spacer().frame(width: 12)
+
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("STROKES: \(turnManager.strokeCount)")
-                        .font(.custom("Noteworthy-Bold", size: 18))
+                        .bodyStyle(size: 18)
                     if turnManager.strokeCount > 0 {
                         let diff = turnManager.strokeCount - currentPar
                         Text(diff == 0 ? "EVEN" : (diff > 0 ? "+\(diff)" : "\(diff)"))
-                            .font(.custom("Noteworthy-Bold", size: 13))
+                            .font(.custom("Futura-Bold", size: 13))
                             .foregroundStyle(diff <= 0 ? .green : .red)
+                            .shadow(color: .black.opacity(0.5), radius: 1, x: 0.5, y: 1)
                     }
                 }
             }
@@ -75,8 +89,7 @@ struct GameHUDView: View {
 
     private func instructionBadge(_ text: String) -> some View {
         Text(text.uppercased())
-            .font(.custom("Noteworthy-Bold", size: 14))
-            .foregroundStyle(.primary)
+            .bodyStyle(size: 14)
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
             .background(.ultraThinMaterial)
@@ -86,13 +99,13 @@ struct GameHUDView: View {
     private var holeCompleteOverlay: some View {
         VStack(spacing: 16) {
             Text("HOLE COMPLETE!")
-                .font(.custom("Noteworthy-Bold", size: 28))
+                .headingStyle(size: 28)
 
             let diff = turnManager.strokeCount - currentPar
             let label = scoreLabel(for: diff)
 
             Text(label.uppercased())
-                .font(.custom("Noteworthy-Bold", size: 22))
+                .headingStyle(size: 22)
                 .foregroundStyle(diff <= 0 ? .green : .orange)
 
             HStack(spacing: 4) {
@@ -104,20 +117,19 @@ struct GameHUDView: View {
             }
 
             Text("\(turnManager.strokeCount) STROKE\(turnManager.strokeCount == 1 ? "" : "S")")
-                .font(.custom("Noteworthy-Light", size: 16))
-                .foregroundStyle(.secondary)
+                .lightStyle(size: 16)
 
             HStack(spacing: 16) {
                 Button("MENU") {
                     onReturnToMenu()
                 }
-                .font(.custom("Noteworthy-Bold", size: 15))
+                .bodyStyle(size: 15)
                 .buttonStyle(.bordered)
 
                 Button("NEXT HOLE") {
                     onNextHole()
                 }
-                .font(.custom("Noteworthy-Bold", size: 15))
+                .bodyStyle(size: 15)
                 .buttonStyle(.borderedProminent)
                 .tint(.green)
             }
@@ -128,6 +140,9 @@ struct GameHUDView: View {
     }
 
     private func scoreLabel(for relativeToPar: Int) -> String {
+        if turnManager.strokeCount == 1 {
+            return "Hole in One!"
+        }
         switch relativeToPar {
         case ..<(-2): return "Albatross!"
         case -2: return "Eagle!"

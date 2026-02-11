@@ -10,15 +10,15 @@ struct PermissionView: View {
 
             Image(systemName: "camera.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white.opacity(0.5))
+                .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 2)
 
             VStack(spacing: 8) {
                 Text("CAMERA ACCESS REQUIRED")
-                    .font(.custom("Noteworthy-Bold", size: 22))
+                    .headingStyle(size: 22)
 
                 Text("FINGERGOLF USES YOUR FRONT CAMERA TO TRACK HAND GESTURES FOR SWINGING THE GOLF CLUB.")
-                    .font(.custom("Noteworthy-Light", size: 14))
-                    .foregroundStyle(.secondary)
+                    .lightStyle(size: 14)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
             }
@@ -28,8 +28,7 @@ struct PermissionView: View {
                     openSettings()
                 } label: {
                     Text("OPEN SETTINGS")
-                        .font(.custom("Noteworthy-Bold", size: 18))
-                        .foregroundStyle(.white)
+                        .headingStyle(size: 18)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(
@@ -43,8 +42,8 @@ struct PermissionView: View {
                     onContinueWithoutCamera()
                 } label: {
                     Text("CONTINUE WITH TOUCH CONTROLS")
-                        .font(.custom("Noteworthy-Bold", size: 14))
-                        .foregroundStyle(.secondary)
+                        .bodyStyle(size: 14)
+                        .opacity(0.7)
                 }
             }
             .padding(.horizontal, 40)

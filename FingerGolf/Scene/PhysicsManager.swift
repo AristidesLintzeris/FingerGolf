@@ -63,7 +63,7 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
     // MARK: - Hole Trigger
 
     func setupHoleTrigger(at position: SCNVector3) -> SCNNode {
-        let triggerGeometry = SCNCylinder(radius: 0.06, height: 0.02)
+        let triggerGeometry = SCNCylinder(radius: 0.08, height: 0.02)
         triggerGeometry.firstMaterial?.diffuse.contents = UIColor.clear
         let triggerNode = SCNNode(geometry: triggerGeometry)
         triggerNode.name = "hole_trigger"
