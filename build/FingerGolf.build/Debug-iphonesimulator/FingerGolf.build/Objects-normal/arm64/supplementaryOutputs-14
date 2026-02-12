@@ -1,0 +1,37 @@
+{
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Scene/CourseBuilder.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseBuilder.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseBuilder.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseBuilder.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseBuilder.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseBuilder.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Scene/CourseDefinition.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseDefinition.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseDefinition.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseDefinition.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseDefinition.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseDefinition.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Scene/CourseManager.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseManager.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseManager.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseManager.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseManager.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CourseManager.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Scene/PhysicsCategories.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/PhysicsCategories.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/PhysicsCategories.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/PhysicsCategories.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/PhysicsCategories.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/PhysicsCategories.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Scene/PhysicsManager.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/PhysicsManager.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/PhysicsManager.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/PhysicsManager.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/PhysicsManager.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/PhysicsManager.swiftdeps"
+  }
+}

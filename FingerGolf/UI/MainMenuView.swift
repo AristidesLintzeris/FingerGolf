@@ -22,7 +22,7 @@ struct MainMenuView: View {
                 Text("FINGERGOLF")
                     .titleStyle(size: 48)
 
-                Text("MINI GOLF WITH HAND GESTURES")
+                Text("MINI GOLF")
                     .lightStyle(size: 14)
                     .tracking(2)
             }

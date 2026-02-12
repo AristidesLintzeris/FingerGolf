@@ -1,0 +1,136 @@
+{
+  "source": "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/UI/LevelEditorView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Save Course",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 63
+        }
+      },
+      {
+        "comment": "",
+        "key": "Publish Course",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 71
+        }
+      },
+      {
+        "comment": "",
+        "key": "Course name",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 64
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 65
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 69
+        }
+      },
+      {
+        "comment": "",
+        "key": "Course name",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 72
+        }
+      },
+      {
+        "comment": "",
+        "key": "Publish",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 73
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 77
+        }
+      },
+      {
+        "comment": "",
+        "key": "Share this course for others to play?",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 79
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld pcs",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 129
+        }
+      },
+      {
+        "comment": "",
+        "key": "BUILDER",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 221
+        }
+      },
+      {
+        "comment": "",
+        "key": "PAR: %lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 248
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 251
+        }
+      },
+      {
+        "comment": "",
+        "key": "DESELECT PIECE",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 264
+        }
+      },
+      {
+        "comment": "",
+        "key": "BACK TO MENU",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 306
+        }
+      },
+      {
+        "comment": "",
+        "key": "TOOLS",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 347
+        }
+      }
+    ]
+  },
+  "version": 1
+}

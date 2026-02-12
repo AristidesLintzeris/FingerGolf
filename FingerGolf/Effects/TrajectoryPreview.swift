@@ -7,20 +7,13 @@ class TrajectoryPreview {
 
     private let pointCount: Int = 25
     private let dotRadius: CGFloat = 0.012
-    private let timeStep: Float = 0.04
-
-    // Physics constants matching PhysicsManager / BallController
-    private let ballMass: Float = 0.045
-    private let gravity: simd_float3 = simd_float3(0, -9.8, 0)
-    private let linearDamping: Float = 0.1
-    private let floorY: Float = 0.065
+    private let maxLineLength: Float = 3.0
 
     // MARK: - Nodes
 
     private let containerNode: SCNNode
     private var dotNodes: [SCNNode] = []
-    private let dimMaterial: SCNMaterial
-    private let brightMaterial: SCNMaterial
+    private let material: SCNMaterial
 
     // MARK: - State
 
@@ -31,31 +24,23 @@ class TrajectoryPreview {
         containerNode.name = "trajectory_preview"
         containerNode.isHidden = true
 
-        // Dim material: aiming state
-        dimMaterial = SCNMaterial()
-        dimMaterial.diffuse.contents = UIColor.white.withAlphaComponent(0.3)
-        dimMaterial.lightingModel = .constant
-        dimMaterial.blendMode = .add
-        dimMaterial.writesToDepthBuffer = false
-        dimMaterial.isDoubleSided = true
+        // Dashed line material
+        material = SCNMaterial()
+        material.diffuse.contents = UIColor.white.withAlphaComponent(0.6)
+        material.lightingModel = .constant
+        material.blendMode = .add
+        material.writesToDepthBuffer = false
+        material.isDoubleSided = true
 
-        // Bright material: flick in progress
-        brightMaterial = SCNMaterial()
-        brightMaterial.diffuse.contents = UIColor.white.withAlphaComponent(0.7)
-        brightMaterial.lightingModel = .constant
-        brightMaterial.blendMode = .add
-        brightMaterial.writesToDepthBuffer = false
-        brightMaterial.isDoubleSided = true
-
-        // Pre-create dot nodes with shared geometry
+        // Pre-create dot nodes
         let dotGeometry = SCNSphere(radius: dotRadius)
         dotGeometry.segmentCount = 6
-        dotGeometry.firstMaterial = dimMaterial
+        dotGeometry.firstMaterial = material
 
         for i in 0..<pointCount {
             let dot = SCNNode(geometry: dotGeometry.copy() as? SCNGeometry)
             dot.name = "trajectory_dot_\(i)"
-            dot.geometry?.firstMaterial = dimMaterial
+            dot.geometry?.firstMaterial = material
             containerNode.addChildNode(dot)
             dotNodes.append(dot)
         }
@@ -75,49 +60,28 @@ class TrajectoryPreview {
 
     // MARK: - Update
 
+    /// Update trajectory as a dashed line from ball in the aim direction.
+    /// Length is proportional to power.
     func update(ballPosition: SCNVector3,
-                aimDirection: SCNVector3,
-                power: Float,
-                maxSwingPower: Float,
-                bright: Bool) {
+                direction: SCNVector3,
+                power: Float) {
 
-        let clampedPower = min(max(power, 0.05), 1.0)
-        let forceMagnitude = clampedPower * maxSwingPower
-
-        // Initial velocity = Force / mass (impulse)
-        let forceVector = simd_float3(
-            aimDirection.x * forceMagnitude,
-            0.02,
-            aimDirection.z * forceMagnitude
-        )
-        var velocity = forceVector / ballMass
-        var position = simd_float3(ballPosition.x, ballPosition.y, ballPosition.z)
-
-        let material = bright ? brightMaterial : dimMaterial
+        let clampedPower = min(max(power, 0.0), 1.0)
+        let lineLength = clampedPower * maxLineLength
+        let spacing = lineLength / Float(pointCount)
 
         for i in 0..<pointCount {
-            // Apply gravity
-            velocity += gravity * timeStep
+            let t = Float(i + 1) * spacing
+            let x = ballPosition.x + direction.x * t
+            let z = ballPosition.z + direction.z * t
 
-            // Apply linear damping
-            velocity *= (1.0 - linearDamping * timeStep)
-
-            // Update position
-            position += velocity * timeStep
-
-            // Floor clamp
-            if position.y < floorY {
-                position.y = floorY
-                velocity.y = max(velocity.y, 0)
-            }
-
-            dotNodes[i].position = SCNVector3(position.x, position.y, position.z)
-            dotNodes[i].geometry?.firstMaterial = material
+            dotNodes[i].position = SCNVector3(x, 0.07, z)
 
             // Fade dots toward the end
             let fadeProgress = Float(i) / Float(pointCount)
             let scale = 1.0 - fadeProgress * 0.6
             dotNodes[i].scale = SCNVector3(scale, scale, scale)
+            dotNodes[i].isHidden = (t > lineLength + 0.01)
         }
 
         show()

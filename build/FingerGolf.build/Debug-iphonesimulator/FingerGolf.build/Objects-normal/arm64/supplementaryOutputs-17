@@ -1,0 +1,30 @@
+{
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/UI/FingerDotsOverlay.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/FingerDotsOverlay.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/FingerDotsOverlay.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/FingerDotsOverlay.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/FingerDotsOverlay.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/FingerDotsOverlay.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/UI/FontStyles.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/FontStyles.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/FontStyles.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/FontStyles.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/FontStyles.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/FontStyles.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/UI/GameHUDView.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameHUDView.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameHUDView.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameHUDView.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameHUDView.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameHUDView.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/UI/LeaderboardView.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/LeaderboardView.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/LeaderboardView.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/LeaderboardView.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/LeaderboardView.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/LeaderboardView.swiftdeps"
+  }
+}

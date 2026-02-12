@@ -1,0 +1,37 @@
+{
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Core/CloudKitManager.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CloudKitManager.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CloudKitManager.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CloudKitManager.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CloudKitManager.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/CloudKitManager.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Core/GameCoordinator.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameCoordinator.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameCoordinator.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameCoordinator.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameCoordinator.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameCoordinator.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Core/GameSettings.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameSettings.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameSettings.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameSettings.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameSettings.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameSettings.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Core/GameState.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameState.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameState.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameState.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameState.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/GameState.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Core/ProgressManager.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/ProgressManager.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/ProgressManager.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/ProgressManager.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/ProgressManager.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/arm64/ProgressManager.swiftdeps"
+  }
+}

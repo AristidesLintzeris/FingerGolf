@@ -1,0 +1,56 @@
+{
+  "source": "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/UI/SettingsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "SETTINGS",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 12
+        }
+      },
+      {
+        "comment": "",
+        "key": "DONE",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 17
+        }
+      },
+      {
+        "comment": "",
+        "key": "FLICK POWER",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "Power",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 29
+        }
+      },
+      {
+        "comment": "",
+        "key": "COURSE BARRIERS",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 43
+        }
+      },
+      {
+        "comment": "",
+        "key": "RESET TO DEFAULTS",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 62
+        }
+      }
+    ]
+  },
+  "version": 1
+}

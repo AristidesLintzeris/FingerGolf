@@ -1,0 +1,16 @@
+{
+  "source": "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/UI/PauseMenuView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "PAUSED",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 12
+        }
+      }
+    ]
+  },
+  "version": 1
+}

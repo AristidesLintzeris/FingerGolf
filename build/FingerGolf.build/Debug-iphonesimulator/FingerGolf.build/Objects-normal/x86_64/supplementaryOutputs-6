@@ -1,0 +1,30 @@
+{
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Tracking/KalmanScalar.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/KalmanScalar.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/KalmanScalar.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/KalmanScalar.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/KalmanScalar.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/KalmanScalar.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Tracking/SwingDetector.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/SwingDetector.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/SwingDetector.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/SwingDetector.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/SwingDetector.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/SwingDetector.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Tracking/VisionEngine.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/VisionEngine.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/VisionEngine.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/VisionEngine.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/VisionEngine.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/VisionEngine.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/UI/FindCourseView.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/FindCourseView.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/FindCourseView.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/FindCourseView.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/FindCourseView.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/FindCourseView.swiftdeps"
+  }
+}

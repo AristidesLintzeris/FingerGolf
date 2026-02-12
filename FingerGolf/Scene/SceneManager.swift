@@ -2,155 +2,217 @@ import SceneKit
 
 class SceneManager {
 
-    let scene: SCNScene
-    let cameraNode: SCNNode
-    let cameraOrbitNode: SCNNode
+    let scene = SCNScene()
+    let cameraNode = SCNNode()
+    let cameraOrbitNode = SCNNode()
+    private(set) var courseRootNode: SCNNode?
 
-    private var courseRootNode: SCNNode?
-
-    // 4 fixed isometric angles: NE, SE, SW, NW
+    private var currentAngleIndex = 0
     private let isometricAngles: [Float] = [
-        0,                      // NE
-        Float.pi / 2,           // SE
-        Float.pi,               // SW
-        Float.pi * 3 / 2        // NW
+        Float.pi / 4,           // NE corner (45°)
+        Float.pi * 3 / 4,       // SE corner (135°)
+        Float.pi * 5 / 4,       // SW corner (225°)
+        Float.pi * 7 / 4        // NW corner (315°)
     ]
-    private(set) var currentAngleIndex: Int = 0
+
+    // Camera follow settings
+    private var followingBall: SCNNode?
+    private var manualCameraOffset: SCNVector3 = SCNVector3Zero
+    private var isManuallyControlled = false
 
     init() {
-        scene = SCNScene()
+        setupCamera()
+        setupLighting()
+    }
 
-        // Camera orbit node: rotates around the course center
-        cameraOrbitNode = SCNNode()
-        cameraOrbitNode.name = "camera_orbit"
+    // MARK: - Camera Setup
 
-        // Camera node: positioned for isometric view
-        cameraNode = SCNNode()
-        cameraNode.name = "main_camera"
-        cameraNode.camera = SCNCamera()
-        cameraNode.camera!.usesOrthographicProjection = true
-        cameraNode.camera!.orthographicScale = 4.0
-        cameraNode.camera!.zNear = 0.1
-        cameraNode.camera!.zFar = 100
+    private func setupCamera() {
+        let camera = SCNCamera()
 
-        // True isometric angle: arctan(1/sqrt(2)) = ~35.264 degrees elevation
-        // Position camera elevated and at an angle
-        cameraNode.position = SCNVector3(0, 10, 10)
-        cameraNode.eulerAngles.x = -Float.pi / 5  // ~36 degrees down
+        // Start with perspective camera for gameplay (Unity-like follow camera)
+        camera.usesOrthographicProjection = false
+        camera.fieldOfView = 60  // Standard 60° FOV
+        camera.zNear = 0.1
+        camera.zFar = 100
+        cameraNode.camera = camera
+
+        // Perspective camera position: behind and above the ball for follow view
+        let followPitch: Float = -.pi / 6  // 30° down (gentle angle)
+        let followHeight: Float = 3.0  // Height above ground
+        let followDistance: Float = 4.0  // Distance back from target
+
+        cameraNode.eulerAngles.x = followPitch
+        cameraNode.position = SCNVector3(0, followHeight, followDistance)
 
         cameraOrbitNode.addChildNode(cameraNode)
         scene.rootNode.addChildNode(cameraOrbitNode)
 
-        setupLighting()
-        setupPhysicsWorld()
-        setupBackground()
+        // Start at first corner angle
+        setCameraAngleIndex(0)
     }
 
-    // MARK: - Lighting
+    // MARK: - Camera Mode Switching
+
+    /// Switch to perspective follow camera for gameplay (Unity-like)
+    func enablePerspectiveCamera() {
+        guard let camera = cameraNode.camera else { return }
+
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = 0.3
+
+        camera.usesOrthographicProjection = false
+        camera.fieldOfView = 60
+
+        // Position camera behind and above for follow view
+        cameraNode.eulerAngles.x = -.pi / 6  // 30° down
+        cameraNode.position = SCNVector3(0, 3.0, 4.0)
+
+        SCNTransaction.commit()
+    }
+
+    /// Switch to orthographic top-down camera for editor mode
+    func enableOrthographicCamera() {
+        guard let camera = cameraNode.camera else { return }
+
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = 0.3
+
+        camera.usesOrthographicProjection = true
+        camera.orthographicScale = 6.0
+
+        // Top-down isometric view for editor
+        cameraNode.eulerAngles.x = -.pi / 3  // 60° down (steep)
+        cameraNode.position = SCNVector3(0, 18, 6)
+
+        SCNTransaction.commit()
+    }
 
     private func setupLighting() {
-        // Top-down directional light - looks good from all 4 angles
-        let sunNode = SCNNode()
-        sunNode.name = "sun_light"
-        sunNode.light = SCNLight()
-        sunNode.light!.type = .directional
-        sunNode.light!.color = UIColor(white: 1.0, alpha: 1.0)
-        sunNode.light!.intensity = 800
-        sunNode.light!.castsShadow = true
-        sunNode.light!.shadowMode = .deferred
-        sunNode.light!.shadowSampleCount = 8
-        sunNode.light!.shadowRadius = 3.0
-        sunNode.light!.shadowColor = UIColor(white: 0, alpha: 0.25)
-        // Nearly top-down so shadows are short and consistent from all angles
-        sunNode.eulerAngles = SCNVector3(-Float.pi / 2.5, 0, 0)
-        scene.rootNode.addChildNode(sunNode)
-
-        // Strong ambient fill so no dark sides from any angle
+        // Brighter ambient light for softer shadows
         let ambientNode = SCNNode()
-        ambientNode.name = "ambient_light"
-        ambientNode.light = SCNLight()
-        ambientNode.light!.type = .ambient
-        ambientNode.light!.color = UIColor(red: 0.75, green: 0.78, blue: 0.82, alpha: 1.0)
-        ambientNode.light!.intensity = 600
+        let ambient = SCNLight()
+        ambient.type = .ambient
+        ambient.color = UIColor(white: 0.75, alpha: 1.0)
+        ambientNode.light = ambient
         scene.rootNode.addChildNode(ambientNode)
-    }
 
-    // MARK: - Physics
-
-    private func setupPhysicsWorld() {
-        scene.physicsWorld.gravity = SCNVector3(0, -9.8, 0)
-        scene.physicsWorld.speed = 1.0
-    }
-
-    // MARK: - Background
-
-    private func setupBackground() {
-        // Create a gradient image for the scene background
-        let size = CGSize(width: 1, height: 256)
-        UIGraphicsBeginImageContextWithOptions(size, true, 1)
-        guard let ctx = UIGraphicsGetCurrentContext() else { return }
-
-        let colors = [
-            UIColor(red: 0.50, green: 0.75, blue: 0.92, alpha: 1.0).cgColor,
-            UIColor(red: 0.35, green: 0.58, blue: 0.78, alpha: 1.0).cgColor
-        ]
-        let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors as CFArray, locations: nil)!
-        ctx.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: 0, y: size.height), options: [])
-
-        let image = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-
-        scene.background.contents = image
+        // Directional light (sun) with softer shadows
+        let sunNode = SCNNode()
+        let sun = SCNLight()
+        sun.type = .directional
+        sun.color = UIColor(white: 0.6, alpha: 1.0)
+        sun.castsShadow = true
+        sun.shadowMode = .deferred
+        sun.shadowSampleCount = 16
+        sun.shadowRadius = 8
+        sun.shadowMapSize = CGSize(width: 2048, height: 2048)
+        sun.maximumShadowDistance = 30
+        sun.orthographicScale = 10
+        sunNode.light = sun
+        sunNode.eulerAngles = SCNVector3(-Float.pi / 3, Float.pi / 4, 0)
+        scene.rootNode.addChildNode(sunNode)
     }
 
     // MARK: - Course Management
 
-    func setCourseRoot(_ courseNode: SCNNode) {
-        courseRootNode?.removeFromParentNode()
-        courseRootNode = courseNode
-        scene.rootNode.addChildNode(courseNode)
+    func setCourseRoot(_ node: SCNNode) {
+        clearCourse()
+        courseRootNode = node
+        scene.rootNode.addChildNode(node)
 
-        // Center camera on course
-        let (minBound, maxBound) = courseNode.boundingBox
-        let centerX = (minBound.x + maxBound.x) / 2
-        let centerZ = (minBound.z + maxBound.z) / 2
-        cameraOrbitNode.position = SCNVector3(centerX, 0, centerZ)
-
-        // Adjust orthographic scale to fit course
-        let width = maxBound.x - minBound.x
-        let depth = maxBound.z - minBound.z
-        let maxExtent = max(width, depth)
-        cameraNode.camera!.orthographicScale = Double(maxExtent) * 0.8
+        // Auto-adjust orthographic scale based on course size
+        let bounds = node.boundingBox
+        let width = bounds.max.x - bounds.min.x
+        let depth = bounds.max.z - bounds.min.z
+        let maxDimension = max(width, depth)
+        cameraNode.camera?.orthographicScale = Double(maxDimension * 0.8)
     }
 
     func clearCourse() {
         courseRootNode?.removeFromParentNode()
         courseRootNode = nil
+        followingBall = nil
+        isManuallyControlled = false
+        manualCameraOffset = SCNVector3Zero
     }
 
-    // MARK: - Camera Rotation (4 fixed isometric angles)
+    // MARK: - Camera Follow Ball
+
+    func startFollowingBall(_ ballNode: SCNNode) {
+        followingBall = ballNode
+        isManuallyControlled = false
+        manualCameraOffset = SCNVector3Zero
+    }
+
+    func updateCameraFollow() {
+        guard let ball = followingBall, !isManuallyControlled else { return }
+        let targetPos = ball.position
+        centerCamera(on: targetPos, animated: false)
+    }
+
+    func centerCamera(on position: SCNVector3, animated: Bool = true) {
+        let targetPos = SCNVector3(
+            position.x + manualCameraOffset.x,
+            0,
+            position.z + manualCameraOffset.z
+        )
+
+        if animated {
+            SCNTransaction.begin()
+            SCNTransaction.animationDuration = 0.3
+            cameraOrbitNode.position = targetPos
+            SCNTransaction.commit()
+        } else {
+            cameraOrbitNode.position = targetPos
+        }
+    }
+
+    // MARK: - Manual Camera Control (Two-Finger)
+
+    func panCameraManually(by delta: SCNVector3) {
+        isManuallyControlled = true
+        manualCameraOffset.x += delta.x
+        manualCameraOffset.z += delta.z
+
+        if let ball = followingBall {
+            centerCamera(on: ball.position, animated: false)
+        }
+    }
+
+    func resetCameraToBall() {
+        isManuallyControlled = false
+        manualCameraOffset = SCNVector3Zero
+        if let ball = followingBall {
+            centerCamera(on: ball.position, animated: true)
+        }
+    }
+
+    // MARK: - Camera Rotation
 
     func rotateToNextAngle() {
-        currentAngleIndex = (currentAngleIndex + 1) % 4
-        animateToCurrentAngle()
+        currentAngleIndex = (currentAngleIndex + 1) % isometricAngles.count
+        applyCameraRotation()
     }
 
     func rotateToPreviousAngle() {
-        currentAngleIndex = (currentAngleIndex + 3) % 4
-        animateToCurrentAngle()
-    }
-
-    private func animateToCurrentAngle() {
-        let targetAngle = isometricAngles[currentAngleIndex]
-        SCNTransaction.begin()
-        SCNTransaction.animationDuration = 0.35
-        SCNTransaction.animationTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        cameraOrbitNode.eulerAngles.y = targetAngle
-        SCNTransaction.commit()
+        currentAngleIndex = (currentAngleIndex - 1 + isometricAngles.count) % isometricAngles.count
+        applyCameraRotation()
     }
 
     func setCameraAngleIndex(_ index: Int) {
-        currentAngleIndex = index % 4
+        currentAngleIndex = index % isometricAngles.count
+        applyCameraRotation()
+    }
+
+    func getCurrentAngleIndex() -> Int {
+        return currentAngleIndex
+    }
+
+    private func applyCameraRotation() {
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = 0.3
         cameraOrbitNode.eulerAngles.y = isometricAngles[currentAngleIndex]
+        SCNTransaction.commit()
     }
 }

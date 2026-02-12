@@ -27,7 +27,7 @@ class AssetCatalog {
         guard let url = Bundle.main.url(
             forResource: "colormap",
             withExtension: "png",
-            subdirectory: "MinigolfModels/Textures"
+            subdirectory: "art.scnassets/Textures"
         ) else { return nil }
         return UIImage(contentsOfFile: url.path)
     }
@@ -39,21 +39,9 @@ class AssetCatalog {
             return cached.clone()
         }
 
-        guard let url = Bundle.main.url(
-            forResource: name,
-            withExtension: "obj",
-            subdirectory: "MinigolfModels"
-        ) else {
+        // Load via SCNScene(named:) which is the standard .scnassets API
+        guard let scene = SCNScene(named: "art.scnassets/\(name).obj") else {
             print("AssetCatalog: Missing model '\(name)'")
-            return nil
-        }
-
-        let sceneSource = SCNSceneSource(url: url, options: [
-            .convertToYUp: true
-        ])
-
-        guard let scene = try? sceneSource?.scene(options: nil) else {
-            print("AssetCatalog: Failed to load '\(name)'")
             return nil
         }
 

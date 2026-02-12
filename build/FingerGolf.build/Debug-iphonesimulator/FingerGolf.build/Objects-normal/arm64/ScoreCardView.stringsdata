@@ -1,0 +1,112 @@
+{
+  "source": "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/UI/ScoreCardView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "COURSE COMPLETE!",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 18
+        }
+      },
+      {
+        "comment": "",
+        "key": "TOTAL: %lld STROKES",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 23
+        }
+      },
+      {
+        "comment": "",
+        "key": "EVEN PAR",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 26
+        }
+      },
+      {
+        "comment": "",
+        "key": "+%lld OVER PAR",
+        "location": {
+          "startingColumn": 55,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld UNDER PAR",
+        "location": {
+          "startingColumn": 91,
+          "startingLine": 27
+        }
+      },
+      {
+        "comment": "",
+        "key": "Hole",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 36
+        }
+      },
+      {
+        "comment": "",
+        "key": "Par",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "Score",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 40
+        }
+      },
+      {
+        "comment": "",
+        "key": "Result",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 43
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 54
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 56
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 58
+        }
+      },
+      {
+        "comment": "",
+        "key": "RETURN TO MENU",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 77
+        }
+      }
+    ]
+  },
+  "version": 1
+}

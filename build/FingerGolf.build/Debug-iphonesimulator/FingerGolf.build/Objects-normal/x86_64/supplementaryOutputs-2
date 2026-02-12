@@ -1,0 +1,37 @@
+{
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Effects/BarrierRippleEffect.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/BarrierRippleEffect.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/BarrierRippleEffect.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/BarrierRippleEffect.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/BarrierRippleEffect.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/BarrierRippleEffect.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Effects/OceanBackground.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/OceanBackground.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/OceanBackground.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/OceanBackground.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/OceanBackground.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/OceanBackground.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Effects/TrajectoryPreview.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/TrajectoryPreview.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/TrajectoryPreview.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/TrajectoryPreview.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/TrajectoryPreview.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/TrajectoryPreview.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Gameplay/BallController.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/BallController.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/BallController.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/BallController.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/BallController.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/BallController.swiftdeps"
+  },
+  "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/Gameplay/ClubController.swift" : {
+    "const-values" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/ClubController.swiftconstvalues",
+    "dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/ClubController.d",
+    "diagnostics" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/ClubController.dia",
+    "object" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/ClubController.o",
+    "swift-dependencies" : "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/build/FingerGolf.build/Debug-iphonesimulator/FingerGolf.build/Objects-normal/x86_64/ClubController.swiftdeps"
+  }
+}

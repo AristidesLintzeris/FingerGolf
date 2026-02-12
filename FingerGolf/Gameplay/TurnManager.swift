@@ -2,8 +2,7 @@ import Foundation
 import Combine
 
 enum TurnState {
-    case placingClub       // Player positions club via touch
-    case readyToSwing      // Club placed, waiting for swing input
+    case placingClub       // Waiting for player to tap ball and aim
     case swinging          // Swing in progress
     case ballMoving        // Ball is moving, player waits
     case ballStopped       // Ball stopped, checking if in hole
@@ -11,13 +10,11 @@ enum TurnState {
 }
 
 enum TurnEvent {
-    case clubPlaced
     case swingStarted
     case ballHit
     case ballStopped
     case ballInHole
     case continuePlay
-    case handLost
     case reset
 }
 
@@ -28,10 +25,7 @@ class TurnManager: ObservableObject {
 
     func advanceState(_ event: TurnEvent) {
         switch (state, event) {
-        case (.placingClub, .clubPlaced):
-            state = .readyToSwing
-
-        case (.readyToSwing, .swingStarted):
+        case (.placingClub, .swingStarted):
             state = .swinging
 
         case (.swinging, .ballHit):
@@ -45,10 +39,6 @@ class TurnManager: ObservableObject {
             state = .holeComplete
 
         case (.ballStopped, .continuePlay):
-            state = .placingClub
-
-        case (.readyToSwing, .handLost):
-            // Hand tracking lost before swing - reset club, don't count stroke
             state = .placingClub
 
         case (_, .reset):

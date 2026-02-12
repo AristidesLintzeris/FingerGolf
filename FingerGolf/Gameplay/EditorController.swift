@@ -37,6 +37,22 @@ class EditorController: ObservableObject {
     @Published var courseName: String = "My Course"
     @Published var cameraDirectionLabel: String = "N"
     @Published var activeTool: EditorTool? = nil
+    @Published var canUndo: Bool = false
+    @Published var canRedo: Bool = false
+    @Published var lastUsedPieceModel: String? = nil
+
+    // MARK: - Undo/Redo
+
+    private enum EditorAction {
+        case place(PiecePlacement)
+        case delete(PiecePlacement)
+        case rotate(Int, Int, Int) // index, oldRotation, newRotation
+        case setBall(GridPosition, GridPosition) // old, new
+        case setHole(GridPosition, GridPosition) // old, new
+    }
+
+    private var undoStack: [EditorAction] = []
+    private var redoStack: [EditorAction] = []
 
     // MARK: - Scene References
 
@@ -77,7 +93,7 @@ class EditorController: ObservableObject {
 
         let gridSize = 20
         let lineMaterial = SCNMaterial()
-        lineMaterial.diffuse.contents = UIColor.white.withAlphaComponent(0.08)
+        lineMaterial.diffuse.contents = UIColor.white.withAlphaComponent(0.15)
         lineMaterial.lightingModel = .constant
 
         for i in -gridSize / 2...gridSize / 2 {
@@ -144,12 +160,15 @@ class EditorController: ObservableObject {
 
     func updateCameraLabel() {
         guard let sm = sceneManager else { return }
-        cameraDirectionLabel = directionLabels[sm.currentAngleIndex]
+        cameraDirectionLabel = directionLabels[sm.getCurrentAngleIndex()]
     }
 
     // MARK: - Piece Selection (from palette)
 
     func selectPieceToPlace(_ modelName: String) {
+        if let current = selectedPieceModel, current != modelName {
+            lastUsedPieceModel = current
+        }
         selectedPieceModel = modelName
         selectedPieceIndex = nil
         activeTool = nil
@@ -194,18 +213,24 @@ class EditorController: ObservableObject {
         if let tool = activeTool {
             switch tool {
             case .ball:
+                let oldPos = ballStartPosition
                 ballStartPosition = GridPosition(x: gridX, z: gridZ)
                 ballMarkerNode?.position = SCNVector3(Float(gridX), 0.08, Float(gridZ))
+                pushUndo(.setBall(oldPos, ballStartPosition))
             case .hole:
+                let oldPos = holeGridPosition
                 holeGridPosition = GridPosition(x: gridX, z: gridZ)
                 holeMarkerNode?.position = SCNVector3(Float(gridX), 0.01, Float(gridZ))
+                pushUndo(.setHole(oldPos, holeGridPosition))
             case .eraser:
                 if let index = pieces.firstIndex(where: {
                     $0.position.x == gridX && $0.position.z == gridZ
                 }) {
+                    let deleted = pieces[index]
                     placedNodes[index].removeFromParentNode()
                     placedNodes.remove(at: index)
                     pieces.remove(at: index)
+                    pushUndo(.delete(deleted))
                     if selectedPieceIndex == index {
                         selectedPieceIndex = nil
                         selectionHighlightNode?.isHidden = true
@@ -251,6 +276,7 @@ class EditorController: ObservableObject {
 
         let placement = PiecePlacement(model: modelName, x: x, z: z, rotation: ghostRotation)
         pieces.append(placement)
+        pushUndo(.place(placement))
 
         if let node = AssetCatalog.shared.loadPiece(named: modelName) {
             node.position = SCNVector3(Float(x), 0, Float(z))
@@ -288,12 +314,14 @@ class EditorController: ObservableObject {
             ghostNode?.eulerAngles.y = Float(ghostRotation) * .pi / 180.0
         } else if let index = selectedPieceIndex, index < pieces.count {
             let piece = pieces[index]
-            let newRotation = (piece.rotation + 90) % 360
+            let oldRotation = piece.rotation
+            let newRotation = (oldRotation + 90) % 360
             pieces[index] = PiecePlacement(
                 model: piece.model, x: piece.position.x,
                 z: piece.position.z, rotation: newRotation
             )
             placedNodes[index].eulerAngles.y = Float(newRotation) * .pi / 180.0
+            pushUndo(.rotate(index, oldRotation, newRotation))
         }
     }
 
@@ -303,12 +331,14 @@ class EditorController: ObservableObject {
             ghostNode?.eulerAngles.y = Float(ghostRotation) * .pi / 180.0
         } else if let index = selectedPieceIndex, index < pieces.count {
             let piece = pieces[index]
-            let newRotation = (piece.rotation - 90 + 360) % 360
+            let oldRotation = piece.rotation
+            let newRotation = (oldRotation - 90 + 360) % 360
             pieces[index] = PiecePlacement(
                 model: piece.model, x: piece.position.x,
                 z: piece.position.z, rotation: newRotation
             )
             placedNodes[index].eulerAngles.y = Float(newRotation) * .pi / 180.0
+            pushUndo(.rotate(index, oldRotation, newRotation))
         }
     }
 
@@ -339,6 +369,125 @@ class EditorController: ObservableObject {
         holeMarkerNode?.position = SCNVector3(
             Float(holeGridPosition.x), 0.01, Float(holeGridPosition.z)
         )
+    }
+
+    // MARK: - Undo / Redo
+
+    private func pushUndo(_ action: EditorAction) {
+        undoStack.append(action)
+        redoStack.removeAll()
+        canUndo = true
+        canRedo = false
+    }
+
+    private func updateUndoRedoState() {
+        canUndo = !undoStack.isEmpty
+        canRedo = !redoStack.isEmpty
+    }
+
+    func undo() {
+        guard let action = undoStack.popLast() else { return }
+        applyReverse(action)
+        redoStack.append(action)
+        updateUndoRedoState()
+    }
+
+    func redo() {
+        guard let action = redoStack.popLast() else { return }
+        applyForward(action)
+        undoStack.append(action)
+        updateUndoRedoState()
+    }
+
+    private func applyReverse(_ action: EditorAction) {
+        switch action {
+        case .place(let placement):
+            // Undo place = remove the piece
+            if let index = pieces.firstIndex(where: {
+                $0.position.x == placement.position.x && $0.position.z == placement.position.z
+                && $0.model == placement.model
+            }) {
+                placedNodes[index].removeFromParentNode()
+                placedNodes.remove(at: index)
+                pieces.remove(at: index)
+                selectedPieceIndex = nil
+                selectionHighlightNode?.isHidden = true
+            }
+
+        case .delete(let placement):
+            // Undo delete = re-add the piece
+            pieces.append(placement)
+            if let node = AssetCatalog.shared.loadPiece(named: placement.model) {
+                node.position = placement.position.scenePosition
+                node.eulerAngles.y = Float(placement.rotation) * .pi / 180.0
+                node.name = "placed_piece"
+                editorRootNode.addChildNode(node)
+                placedNodes.append(node)
+            }
+
+        case .rotate(let index, let oldRotation, _):
+            guard index < pieces.count else { return }
+            let piece = pieces[index]
+            pieces[index] = PiecePlacement(
+                model: piece.model, x: piece.position.x,
+                z: piece.position.z, rotation: oldRotation
+            )
+            placedNodes[index].eulerAngles.y = Float(oldRotation) * .pi / 180.0
+
+        case .setBall(let oldPos, _):
+            ballStartPosition = oldPos
+            ballMarkerNode?.position = SCNVector3(Float(oldPos.x), 0.08, Float(oldPos.z))
+
+        case .setHole(let oldPos, _):
+            holeGridPosition = oldPos
+            holeMarkerNode?.position = SCNVector3(Float(oldPos.x), 0.01, Float(oldPos.z))
+        }
+    }
+
+    private func applyForward(_ action: EditorAction) {
+        switch action {
+        case .place(let placement):
+            pieces.append(placement)
+            if let node = AssetCatalog.shared.loadPiece(named: placement.model) {
+                node.position = placement.position.scenePosition
+                node.eulerAngles.y = Float(placement.rotation) * .pi / 180.0
+                node.name = "placed_piece"
+                editorRootNode.addChildNode(node)
+                placedNodes.append(node)
+            }
+
+        case .delete(let placement):
+            if let index = pieces.firstIndex(where: {
+                $0.position.x == placement.position.x && $0.position.z == placement.position.z
+                && $0.model == placement.model
+            }) {
+                placedNodes[index].removeFromParentNode()
+                placedNodes.remove(at: index)
+                pieces.remove(at: index)
+            }
+
+        case .rotate(let index, _, let newRotation):
+            guard index < pieces.count else { return }
+            let piece = pieces[index]
+            pieces[index] = PiecePlacement(
+                model: piece.model, x: piece.position.x,
+                z: piece.position.z, rotation: newRotation
+            )
+            placedNodes[index].eulerAngles.y = Float(newRotation) * .pi / 180.0
+
+        case .setBall(_, let newPos):
+            ballStartPosition = newPos
+            ballMarkerNode?.position = SCNVector3(Float(newPos.x), 0.08, Float(newPos.z))
+
+        case .setHole(_, let newPos):
+            holeGridPosition = newPos
+            holeMarkerNode?.position = SCNVector3(Float(newPos.x), 0.01, Float(newPos.z))
+        }
+    }
+
+    func selectPreviousPiece() {
+        guard let prev = lastUsedPieceModel else { return }
+        selectPieceToPlace(prev)
     }
 
     // MARK: - Thumbnails
@@ -469,5 +618,9 @@ class EditorController: ObservableObject {
         selectedPieceModel = nil
         ghostRotation = 0
         selectionHighlightNode?.isHidden = true
+        undoStack.removeAll()
+        redoStack.removeAll()
+        lastUsedPieceModel = nil
+        updateUndoRedoState()
     }
 }

@@ -20,6 +20,38 @@ class BarrierRippleEffect {
         rippleNode.runAction(SCNAction.sequence([group, remove]))
     }
 
+    /// Flash ripple effects along all 4 barrier walls to visualize boundaries.
+    func flashBoundaries(in scene: SCNScene, courseBounds: (min: SCNVector3, max: SCNVector3)) {
+        let padding: Float = 0.1
+        let (minB, maxB) = courseBounds
+        let rippleCount = 3
+
+        // North wall
+        for i in 0..<rippleCount {
+            let t = Float(i + 1) / Float(rippleCount + 1)
+            let x = minB.x + (maxB.x - minB.x) * t
+            triggerRipple(at: SCNVector3(x, 0.1, maxB.z + padding), in: scene)
+        }
+        // South wall
+        for i in 0..<rippleCount {
+            let t = Float(i + 1) / Float(rippleCount + 1)
+            let x = minB.x + (maxB.x - minB.x) * t
+            triggerRipple(at: SCNVector3(x, 0.1, minB.z - padding), in: scene)
+        }
+        // East wall
+        for i in 0..<rippleCount {
+            let t = Float(i + 1) / Float(rippleCount + 1)
+            let z = minB.z + (maxB.z - minB.z) * t
+            triggerRipple(at: SCNVector3(maxB.x + padding, 0.1, z), in: scene)
+        }
+        // West wall
+        for i in 0..<rippleCount {
+            let t = Float(i + 1) / Float(rippleCount + 1)
+            let z = minB.z + (maxB.z - minB.z) * t
+            triggerRipple(at: SCNVector3(minB.x - padding, 0.1, z), in: scene)
+        }
+    }
+
     private func createRippleNode() -> SCNNode {
         let ring = SCNTorus(ringRadius: 0.15, pipeRadius: 0.005)
 

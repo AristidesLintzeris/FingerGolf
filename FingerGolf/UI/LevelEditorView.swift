@@ -141,10 +141,51 @@ struct LevelEditorView: View {
     // MARK: - Bottom Controls
 
     private var editorBottomControls: some View {
-        HStack(alignment: .bottom) {
-            // Rotation controls (left) - visible when a piece is selected
+        HStack(alignment: .bottom, spacing: 8) {
+            // Previous object button
+            if editorController.lastUsedPieceModel != nil {
+                Button {
+                    editorController.selectPreviousPiece()
+                } label: {
+                    Image(systemName: "arrow.backward.square")
+                        .bodyStyle(size: 18)
+                        .frame(width: 44, height: 44)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            }
+
+            // Undo
+            Button {
+                editorController.undo()
+            } label: {
+                Image(systemName: "arrow.uturn.backward.circle")
+                    .bodyStyle(size: 18)
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .disabled(!editorController.canUndo)
+            .opacity(editorController.canUndo ? 1.0 : 0.4)
+
+            // Redo
+            Button {
+                editorController.redo()
+            } label: {
+                Image(systemName: "arrow.uturn.forward.circle")
+                    .bodyStyle(size: 18)
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .disabled(!editorController.canRedo)
+            .opacity(editorController.canRedo ? 1.0 : 0.4)
+
+            Spacer()
+
+            // Rotation controls (right) - visible when a piece is selected
             if editorController.selectedPieceModel != nil || editorController.selectedPieceIndex != nil {
-                HStack(spacing: 12) {
+                HStack(spacing: 8) {
                     Button {
                         editorController.rotateLeft()
                     } label: {
@@ -165,11 +206,9 @@ struct LevelEditorView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
                 }
-                .padding(.leading, 16)
             }
-
-            Spacer()
         }
+        .padding(.horizontal, 16)
         .padding(.bottom, 20)
     }
 
@@ -177,7 +216,7 @@ struct LevelEditorView: View {
 
     private var sidebarView: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header with close button
+            // Header with close button (below dynamic island)
             HStack {
                 Text("BUILDER")
                     .headingStyle(size: 20)
@@ -193,7 +232,7 @@ struct LevelEditorView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 16)
+            .padding(.top, 12)
             .padding(.bottom, 10)
 
             Divider().background(.white.opacity(0.2))
@@ -277,7 +316,7 @@ struct LevelEditorView: View {
         .frame(width: sidebarWidth)
         .background(.ultraThickMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 0))
-        .ignoresSafeArea(edges: .vertical)
+        .ignoresSafeArea(edges: .bottom)
     }
 
     // MARK: - Tool Toggle Button
@@ -361,7 +400,8 @@ struct LevelEditorView: View {
     // MARK: - Piece Cell (3D thumbnail)
 
     private func pieceCell(_ name: String) -> some View {
-        Button {
+        let isSelected = editorController.selectedPieceModel == name
+        return Button {
             editorController.selectPieceToPlace(name)
             withAnimation(.spring(response: 0.3)) { sidebarOpen = false }
         } label: {
@@ -370,15 +410,6 @@ struct LevelEditorView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 60, height: 60)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(
-                                editorController.selectedPieceModel == name
-                                ? Color.green : Color.white.opacity(0.15),
-                                lineWidth: editorController.selectedPieceModel == name ? 2 : 1
-                            )
-                    )
 
                 Text(name)
                     .font(.custom("Futura-Medium", size: 7))
@@ -386,11 +417,13 @@ struct LevelEditorView: View {
                     .lineLimit(1)
             }
             .padding(3)
-            .background(
-                editorController.selectedPieceModel == name
-                ? Color.green.opacity(0.2) : Color.clear
-            )
+            .background(isSelected ? Color.green.opacity(0.2) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.green : Color.clear,
+                            lineWidth: isSelected ? 2 : 0)
+            )
         }
     }
 

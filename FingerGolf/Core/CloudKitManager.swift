@@ -228,16 +228,7 @@ class CloudKitManager: ObservableObject {
     // MARK: - User Identity
 
     func fetchPlayerName() async -> String {
-        do {
-            let userID = try await container.userRecordID()
-            let identity = try await container.userIdentity(forUserRecordID: userID)
-            if let components = identity?.nameComponents {
-                return PersonNameComponentsFormatter.localizedString(from: components, style: .short)
-            }
-        } catch {
-            // Fallback
-        }
-        return "Anonymous"
+        return "Player"
     }
 }
 

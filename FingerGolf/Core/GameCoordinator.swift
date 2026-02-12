@@ -1,6 +1,5 @@
 import SceneKit
 import Combine
-import AVFoundation
 
 class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
 
@@ -17,24 +16,20 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
 
     private(set) var physicsManager: PhysicsManager!
     private(set) var holeDetector: HoleDetector!
-    private let barrierRipple = BarrierRippleEffect()
     let trajectoryPreview = TrajectoryPreview()
     let editorController = EditorController()
     lazy var cloudKitManager = CloudKitManager.shared
 
-    // Hand tracking components
-    let cameraManager = CameraManager()
-    private(set) var visionEngine: VisionEngine!
-    private(set) var handTrackingCoordinator: HandTrackingCoordinator!
-    private(set) var swingDetector: SwingDetector!
-
     // MARK: - State
 
     @Published var gameState: GameState = .mainMenu
-    @Published var handTrackingEnabled = false
-    @Published var cameraPermissionDenied = false
+    @Published var showRestartFade: Bool = false
+    @Published var holeScreenPosition: CGPoint = .zero
+    @Published var trajectoryPower: Float = 0.0  // For UI trajectory overlay
+
     private var cancellables = Set<AnyCancellable>()
     private var ballCheckTimer: Timer?
+    private var cameraFollowTimer: Timer?
 
     // MARK: - Init
 
@@ -44,89 +39,12 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         physicsManager.delegate = self
 
         sceneManager.scene.physicsWorld.contactDelegate = physicsManager
-
-        // Setup hand tracking pipeline
-        visionEngine = VisionEngine(pixelBufferPublisher: cameraManager.pixelBufferPublisher.eraseToAnyPublisher())
-        handTrackingCoordinator = HandTrackingCoordinator(visionEngine: visionEngine)
-        swingDetector = SwingDetector(handTrackingCoordinator: handTrackingCoordinator)
-
-        observeHandTracking()
     }
 
-    // MARK: - Hand Tracking
+    // MARK: - Computed
 
     var currentPar: Int {
         courseManager.currentCourse?.par ?? 0
-    }
-
-    func startHandTracking() {
-        cameraManager.requestPermission()
-        cameraManager.$permissionGranted
-            .receive(on: RunLoop.main)
-            .sink { [weak self] granted in
-                guard let self else { return }
-                if granted {
-                    self.cameraManager.startSession()
-                    self.handTrackingEnabled = true
-                    self.cameraPermissionDenied = false
-                } else if AVCaptureDevice.authorizationStatus(for: .video) == .denied {
-                    self.cameraPermissionDenied = true
-                }
-            }
-            .store(in: &cancellables)
-    }
-
-    func stopHandTracking() {
-        cameraManager.stopSession()
-        handTrackingEnabled = false
-    }
-
-    private func observeHandTracking() {
-        // React to hand flick completion for swing
-        handTrackingCoordinator.$handState
-            .receive(on: RunLoop.main)
-            .sink { [weak self] state in
-                guard let self else { return }
-
-                switch state {
-                case .flickCompleted(let power):
-                    if self.turnManager.state == .readyToSwing {
-                        self.handleSwing(power: power)
-                        self.handTrackingCoordinator.resetForNewSwing()
-                    }
-                case .pinching:
-                    if self.turnManager.state == .readyToSwing,
-                       let direction = self.clubController.aimDirection {
-                        self.trajectoryPreview.update(
-                            ballPosition: self.ballController.ballNode.position,
-                            aimDirection: direction,
-                            power: 0.3,
-                            maxSwingPower: Float(self.settings.maxSwingPower),
-                            bright: false
-                        )
-                    }
-                case .flickInProgress:
-                    if self.turnManager.state == .readyToSwing,
-                       let direction = self.clubController.aimDirection {
-                        self.trajectoryPreview.update(
-                            ballPosition: self.ballController.ballNode.position,
-                            aimDirection: direction,
-                            power: 0.7,
-                            maxSwingPower: Float(self.settings.maxSwingPower),
-                            bright: true
-                        )
-                    }
-                case .noHand:
-                    if self.turnManager.state == .readyToSwing {
-                        self.turnManager.advanceState(.handLost)
-                        self.clubController.hideClub()
-                        self.trajectoryPreview.hide()
-                    }
-                default:
-                    break
-                }
-            }
-            .store(in: &cancellables)
     }
 
     // MARK: - Game Flow
@@ -144,7 +62,7 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         // Build and display course
         guard let courseNode = courseManager.buildCurrentCourse() else { return }
 
-        // Setup physics for each piece
+        // Setup physics for each piece (concave mesh for accurate wood edges)
         for child in courseNode.childNodes {
             physicsManager.setupCoursePiecePhysics(for: child)
         }
@@ -154,10 +72,9 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         courseNode.addChildNode(holeTrigger)
         holeDetector.setHolePosition(definition.holePosition.scenePosition)
 
-        // Add barriers
-        let barriers = physicsManager.setupBarriers(around: courseNode)
-        for barrier in barriers {
-            courseNode.addChildNode(barrier)
+        // Setup flag physics (ball hitting flag pole = hole complete)
+        if let flagNode = courseNode.childNode(withName: "flag", recursively: true) {
+            physicsManager.setupFlagPhysics(for: flagNode)
         }
 
         // Set course in scene
@@ -168,10 +85,18 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         ballController.placeBall(at: definition.ballStart.scenePosition)
         sceneManager.scene.rootNode.addChildNode(ballController.ballNode)
 
+        // Switch to perspective follow camera for gameplay
+        sceneManager.enablePerspectiveCamera()
+
+        // Start camera tracking
+        sceneManager.startFollowingBall(ballController.ballNode)
+        sceneManager.centerCamera(on: ballController.ballNode.position)
+        startCameraFollow()
+
         // Add club to scene
         clubController.addToScene(sceneManager.scene.rootNode)
 
-        // Add trajectory preview
+        // Add trajectory preview (3D fallback)
         trajectoryPreview.addToScene(sceneManager.scene.rootNode)
 
         // Reset turn
@@ -187,6 +112,8 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
 
         trajectoryPreview.hide()
         stopBallMonitoring()
+        stopCameraFollow()
+
         scoringManager.recordHoleScore(par: definition.par, strokes: turnManager.strokeCount)
 
         progressManager.completeLevel(
@@ -213,6 +140,7 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
     func returnToMenu() {
         trajectoryPreview.hide()
         stopBallMonitoring()
+        stopCameraFollow()
         sceneManager.scene.isPaused = false
         sceneManager.clearCourse()
         ballController.ballNode.removeFromParentNode()
@@ -232,12 +160,14 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         gameState = .paused
         sceneManager.scene.isPaused = true
         stopBallMonitoring()
+        stopCameraFollow()
     }
 
     func unpauseGame() {
         guard gameState == .paused else { return }
         sceneManager.scene.isPaused = false
         startBallMonitoring()
+        startCameraFollow()
         gameState = .playing
     }
 
@@ -246,70 +176,88 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         trajectoryPreview.hide()
         sceneManager.scene.isPaused = false
         stopBallMonitoring()
+        stopCameraFollow()
 
         ballController.placeBall(at: definition.ballStart.scenePosition)
         physicsManager.setupBallPhysics(for: ballController.ballNode)
         clubController.hideClub()
         turnManager.resetForNewHole()
         gameState = .playing
+
+        // Start camera tracking
+        sceneManager.startFollowingBall(ballController.ballNode)
+        sceneManager.centerCamera(on: ballController.ballNode.position)
         startBallMonitoring()
+        startCameraFollow()
     }
 
     func applySettings() {
-        handTrackingCoordinator.pinchThreshold = settings.pinchThreshold
-        handTrackingCoordinator.flickMinVelocity = settings.flickMinVelocity
-        handTrackingCoordinator.powerPreset = settings.powerPreset
-        handTrackingCoordinator.updateKalman(q: settings.kalmanProcessNoise, r: settings.kalmanMeasurementNoise)
-        visionEngine.smoothingFactor = settings.smoothingFactor
-        visionEngine.jumpThreshold = settings.jumpThreshold
+        // Settings are applied through direct property access where needed
     }
 
-    // MARK: - Touch Input (temporary, replaced by hand tracking later)
+    // MARK: - Touch Input: Slingshot Aim
 
-    func handleClubPlacement(at worldPosition: SCNVector3) {
+    func updateAim(angle: Float, power: CGFloat) {
         guard turnManager.state == .placingClub else { return }
-        clubController.positionClub(at: worldPosition)
-        turnManager.advanceState(.clubPlaced)
-    }
+        clubController.showOnRing(
+            ballPosition: ballController.ballNode.position,
+            angle: angle
+        )
 
-    func handleAimUpdate(toward worldPosition: SCNVector3) {
-        guard turnManager.state == .readyToSwing else { return }
-        clubController.updateAimDirection(toward: worldPosition)
+        // Update trajectory power for UI overlay
+        trajectoryPower = Float(power)
 
-        // Update trajectory preview (dim while aiming)
+        // Also update 3D trajectory (keeping for fallback)
         if let direction = clubController.aimDirection {
             trajectoryPreview.update(
                 ballPosition: ballController.ballNode.position,
-                aimDirection: direction,
-                power: 0.5,
-                maxSwingPower: Float(settings.maxSwingPower),
-                bright: false
+                direction: direction,
+                power: Float(power)
             )
         }
     }
 
-    func handleSwing(power: CGFloat) {
-        guard turnManager.state == .readyToSwing,
+    func cancelAim() {
+        clubController.hideClub()
+        trajectoryPreview.hide()
+        trajectoryPower = 0.0
+    }
+
+    func fireShot(power: CGFloat) {
+        guard turnManager.state == .placingClub,
               let direction = clubController.aimDirection else { return }
 
         trajectoryPreview.hide()
         turnManager.advanceState(.swingStarted)
 
         let clampedPower = min(max(power, 0.05), 1.0)
-        let forceMagnitude = clampedPower * settings.maxSwingPower
+        let forceMagnitude = clampedPower * settings.basePower * settings.powerPreset.multiplier
 
         clubController.playSwingAnimation(power: clampedPower) { [weak self] in
             guard let self else { return }
 
-            let forceVector = SCNVector3(
+            let impulse = SCNVector3(
                 direction.x * Float(forceMagnitude),
                 0.02,
                 direction.z * Float(forceMagnitude)
             )
-            self.ballController.applyForce(direction: forceVector, power: 1.0)
+            self.ballController.applyImpulse(impulse)
             self.clubController.hideClub()
             self.turnManager.advanceState(.ballHit)
         }
+    }
+
+    // MARK: - Camera Follow
+
+    private func startCameraFollow() {
+        cameraFollowTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { [weak self] _ in
+            self?.sceneManager.updateCameraFollow()
+        }
+    }
+
+    private func stopCameraFollow() {
+        cameraFollowTimer?.invalidate()
+        cameraFollowTimer = nil
     }
 
     // MARK: - Ball Monitoring
@@ -327,6 +275,12 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
 
     private func checkBallState() {
         guard turnManager.state == .ballMoving else { return }
+
+        // Safety: trigger fade restart if ball falls off course
+        if ballController.hasFallenOff {
+            handleBallFellOff()
+            return
+        }
 
         ballController.updateState()
 
@@ -349,10 +303,23 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         }
     }
 
+    private func handleBallFellOff() {
+        stopBallMonitoring()
+        stopCameraFollow()
+
+        // Trigger fade effect
+        showRestartFade = true
+
+        // After fade completes, restart
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            self?.showRestartFade = false
+            self?.restartCurrentHole()
+        }
+    }
+
     // MARK: - PhysicsManagerDelegate
 
     func physicsManager(_ manager: PhysicsManager, ballDidEnterHole ballNode: SCNNode) {
-        // Additional check via physics contact - if ball is slow enough, capture it
         if holeDetector.shouldCaptureBall(ballNode) && turnManager.state == .ballMoving {
             let holePos = courseManager.currentCourse?.holePosition.scenePosition ?? SCNVector3Zero
             ballController.captureInHole(holePosition: holePos)
@@ -365,8 +332,23 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         }
     }
 
-    func physicsManager(_ manager: PhysicsManager, ballDidHitBarrier contact: SCNPhysicsContact) {
-        barrierRipple.triggerRipple(at: contact.contactPoint, in: sceneManager.scene)
+    func physicsManager(_ manager: PhysicsManager, ballDidHitFlagPole ballNode: SCNNode) {
+        guard turnManager.state == .ballMoving else { return }
+        stopBallMonitoring()
+        stopCameraFollow()
+
+        let holePos = courseManager.currentCourse?.holePosition.scenePosition ?? SCNVector3Zero
+        ballController.captureInHole(holePosition: holePos)
+        turnManager.advanceState(.ballStopped)
+        turnManager.advanceState(.ballInHole)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.completeHole()
+        }
+    }
+
+    func physicsManager(_ manager: PhysicsManager, ballDidFallOffCourse ballNode: SCNNode) {
+        handleBallFellOff()
     }
 
     // MARK: - Editor
@@ -376,6 +358,9 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         ballController.ballNode.removeFromParentNode()
         clubController.reset()
         trajectoryPreview.hide()
+
+        // Switch to orthographic top-down camera for editor mode
+        sceneManager.enableOrthographicCamera()
 
         editorController.sceneManager = sceneManager
         sceneManager.scene.rootNode.addChildNode(editorController.editorRootNode)

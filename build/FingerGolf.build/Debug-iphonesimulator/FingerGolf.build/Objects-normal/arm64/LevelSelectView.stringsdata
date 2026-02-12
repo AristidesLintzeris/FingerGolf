@@ -1,0 +1,32 @@
+{
+  "source": "/Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/UI/LevelSelectView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "SELECT LEVEL",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 22
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 42
+        }
+      },
+      {
+        "comment": "",
+        "key": "PAR %lld",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 52
+        }
+      }
+    ]
+  },
+  "version": 1
+}

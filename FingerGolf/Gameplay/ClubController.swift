@@ -6,10 +6,12 @@ class ClubController {
     private(set) var placementPosition: SCNVector3?
     private(set) var aimDirection: SCNVector3?
     private(set) var aimAngle: Float = 0
+    private var clubHeight: Float = 0.15
 
-    // Visual aim indicator
-    private let aimLineNode: SCNNode
-    private let aimDotNode: SCNNode
+    // Ring placement
+    let placementRadius: Float = 0.6
+    private let previewDotNode: SCNNode
+    private let ringNode: SCNNode
 
     init(color: String = "red") {
         let modelName = "club-\(color)"
@@ -24,96 +26,113 @@ class ClubController {
         clubNode.name = "golf_club"
         clubNode.isHidden = true
 
-        // Aim line indicator
-        let lineGeometry = SCNCylinder(radius: 0.005, height: 1.0)
-        lineGeometry.firstMaterial?.diffuse.contents = UIColor.white.withAlphaComponent(0.5)
-        aimLineNode = SCNNode(geometry: lineGeometry)
-        aimLineNode.name = "aim_line"
-        aimLineNode.eulerAngles.x = .pi / 2  // lay flat
-        aimLineNode.position = SCNVector3(0, 0.07, 0.5) // extend forward
-        aimLineNode.isHidden = true
+        // Compute club height and set pivot at handle (top) for swing rotation
+        let (minBound, maxBound) = clubNode.boundingBox
+        let handleY = maxBound.y
+        clubHeight = handleY - minBound.y
+        clubNode.pivot = SCNMatrix4MakeTranslation(0, handleY, 0)
 
-        // Aim dot at the end of the line
-        let dotGeometry = SCNSphere(radius: 0.02)
-        dotGeometry.firstMaterial?.diffuse.contents = UIColor.white.withAlphaComponent(0.6)
-        aimDotNode = SCNNode(geometry: dotGeometry)
-        aimDotNode.name = "aim_dot"
-        aimDotNode.isHidden = true
+        // Preview dot: small white sphere shown on ring during placement
+        let dotGeometry = SCNSphere(radius: 0.015)
+        let dotMat = SCNMaterial()
+        dotMat.diffuse.contents = UIColor.white.withAlphaComponent(0.8)
+        dotMat.lightingModel = .constant
+        dotGeometry.firstMaterial = dotMat
+        previewDotNode = SCNNode(geometry: dotGeometry)
+        previewDotNode.name = "placement_preview_dot"
+        previewDotNode.isHidden = true
+
+        // Ring indicator: faint torus showing the placement circle
+        let ringGeometry = SCNTorus(ringRadius: CGFloat(placementRadius), pipeRadius: 0.003)
+        let ringMat = SCNMaterial()
+        ringMat.diffuse.contents = UIColor.white.withAlphaComponent(0.2)
+        ringMat.lightingModel = .constant
+        ringMat.writesToDepthBuffer = false
+        ringGeometry.firstMaterial = ringMat
+        ringNode = SCNNode(geometry: ringGeometry)
+        ringNode.name = "placement_ring"
+        ringNode.isHidden = true
     }
 
     func addToScene(_ parentNode: SCNNode) {
         parentNode.addChildNode(clubNode)
-        parentNode.addChildNode(aimLineNode)
-        parentNode.addChildNode(aimDotNode)
+        parentNode.addChildNode(previewDotNode)
+        parentNode.addChildNode(ringNode)
     }
 
-    // MARK: - Placement
+    // MARK: - Ring-Based Placement
 
-    func positionClub(at worldPosition: SCNVector3) {
-        placementPosition = worldPosition
-        clubNode.position = SCNVector3(worldPosition.x, 0, worldPosition.z)
-        clubNode.isHidden = false
-        aimLineNode.isHidden = false
-        aimDotNode.isHidden = false
-    }
+    /// Show club on the ring around ball at the given angle. Called during drag.
+    func showOnRing(ballPosition: SCNVector3, angle: Float) {
+        let clubX = ballPosition.x + placementRadius * sin(angle)
+        let clubZ = ballPosition.z + placementRadius * cos(angle)
+        let clubPos = SCNVector3(clubX, 0, clubZ)
 
-    func updateAimDirection(toward targetPosition: SCNVector3) {
-        guard let start = placementPosition else { return }
+        placementPosition = clubPos
 
-        let dx = targetPosition.x - start.x
-        let dz = targetPosition.z - start.z
-        let distance = sqrt(dx * dx + dz * dz)
+        // Club faces inward toward ball
+        let faceAngle = angle + .pi
+        aimAngle = faceAngle
+        clubNode.eulerAngles.y = angle  // Club body points outward, swing goes inward
 
-        guard distance > 0.01 else { return }
-
-        // Normalize direction
-        aimDirection = SCNVector3(dx / distance, 0, dz / distance)
-        aimAngle = atan2(dx, dz)
-
-        // Rotate club to face aim direction
-        clubNode.eulerAngles.y = aimAngle
-
-        // Update aim line
-        let lineLength = min(distance, 2.0)
-        let midX = start.x + dx / distance * lineLength / 2
-        let midZ = start.z + dz / distance * lineLength / 2
-        aimLineNode.position = SCNVector3(midX, 0.07, midZ)
-        aimLineNode.eulerAngles.y = aimAngle
-
-        if let lineGeom = aimLineNode.geometry as? SCNCylinder {
-            lineGeom.height = CGFloat(lineLength)
+        // Shot direction: from club toward ball (and beyond)
+        let dx = ballPosition.x - clubX
+        let dz = ballPosition.z - clubZ
+        let dist = sqrt(dx * dx + dz * dz)
+        if dist > 0.001 {
+            aimDirection = SCNVector3(dx / dist, 0, dz / dist)
         }
 
-        // Update aim dot
-        aimDotNode.position = SCNVector3(
-            start.x + dx / distance * lineLength,
-            0.07,
-            start.z + dz / distance * lineLength
-        )
+        // Position club MUCH HIGHER so swing visibly hits the ball
+        // Club should be well above ground, ready to swing down
+        let clubRaisedHeight: Float = 0.5  // Raise club high above ground
+        clubNode.position = SCNVector3(clubX, clubRaisedHeight, clubZ)
+        clubNode.isHidden = false
+
+        // Show preview dot at club position
+        previewDotNode.position = SCNVector3(clubX, 0.07, clubZ)
+        previewDotNode.isHidden = false
+
+        // Show ring around ball
+        ringNode.position = SCNVector3(ballPosition.x, 0.005, ballPosition.z)
+        ringNode.isHidden = false
+    }
+
+    /// Lock the club in place after releasing the placement touch.
+    func placeOnRing() {
+        // Hide preview helpers, keep club visible
+        previewDotNode.isHidden = true
+        ringNode.isHidden = true
     }
 
     // MARK: - Swing Animation
 
     func playSwingAnimation(power: CGFloat, completion: @escaping () -> Void) {
-        let swingAngle = CGFloat.pi / 4 * power
+        // Natural golf swing: backswing -> downswing (hit) -> follow through
+        // More power = bigger backswing
 
-        // Backswing
+        let maxBackswingAngle = CGFloat.pi / 3  // 60° max backswing
+        let backswingAngle = maxBackswingAngle * power
+
+        // Backswing: lift club back and up
         let backswing = SCNAction.rotateBy(
-            x: CGFloat(-swingAngle * 0.8), y: 0, z: 0,
+            x: -backswingAngle, y: 0, z: 0,
+            duration: 0.15 + Double(power) * 0.1  // Longer backswing for more power
+        )
+
+        // Downswing: fast swing down to hit ball (should visually connect with ball)
+        let downswing = SCNAction.rotateBy(
+            x: backswingAngle + CGFloat.pi / 6, y: 0, z: 0,  // Swing through ball
             duration: 0.1
         )
-        // Forward swing (fast)
-        let forwardSwing = SCNAction.rotateBy(
-            x: CGFloat(swingAngle * 1.6), y: 0, z: 0,
-            duration: 0.08
-        )
-        // Follow through
+
+        // Follow through: continue motion after hit
         let followThrough = SCNAction.rotateBy(
-            x: CGFloat(-swingAngle * 0.8), y: 0, z: 0,
-            duration: 0.15
+            x: -CGFloat.pi / 6, y: 0, z: 0,  // Return to neutral
+            duration: 0.2
         )
 
-        let sequence = SCNAction.sequence([backswing, forwardSwing, followThrough])
+        let sequence = SCNAction.sequence([backswing, downswing, followThrough])
         clubNode.runAction(sequence) {
             completion()
         }
@@ -123,8 +142,8 @@ class ClubController {
 
     func hideClub() {
         clubNode.isHidden = true
-        aimLineNode.isHidden = true
-        aimDotNode.isHidden = true
+        previewDotNode.isHidden = true
+        ringNode.isHidden = true
         placementPosition = nil
         aimDirection = nil
     }

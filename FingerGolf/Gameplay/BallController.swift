@@ -28,25 +28,25 @@ class BallController {
     // MARK: - Placement
 
     func placeBall(at position: SCNVector3) {
-        ballNode.position = SCNVector3(position.x, 0.065, position.z)
+        // Place ball at floor level + radius so it sits on top of the floor plane at Y=0
+        // Ball radius is 0.035, so center should be at Y=0.035
+        ballNode.position = SCNVector3(position.x, 0.035, position.z)
         ballNode.physicsBody?.velocity = SCNVector3Zero
         ballNode.physicsBody?.angularVelocity = SCNVector4Zero
         ballNode.isHidden = false
+        ballNode.opacity = 1.0
+        ballNode.scale = SCNVector3(1, 1, 1)
+        ballNode.physicsBody?.isAffectedByGravity = true
+        ballNode.physicsBody?.type = .dynamic
         lastRestPosition = ballNode.position
         state = .atRest
     }
 
-    // MARK: - Swing
+    // MARK: - Hit
 
-    func applyForce(direction: SCNVector3, power: CGFloat) {
+    func applyImpulse(_ impulse: SCNVector3) {
         guard state == .atRest else { return }
-
-        let force = SCNVector3(
-            direction.x * Float(power),
-            0.02,  // slight upward for ramps
-            direction.z * Float(power)
-        )
-        ballNode.physicsBody?.applyForce(force, asImpulse: true)
+        ballNode.physicsBody?.applyForce(impulse, asImpulse: true)
         state = .moving
     }
 
@@ -59,6 +59,11 @@ class BallController {
         let av = body.angularVelocity
         let angularSpeed = sqrt(av.x * av.x + av.y * av.y + av.z * av.z)
         return speed < 0.01 && angularSpeed < 0.05
+    }
+
+    /// Returns true if ball has fallen off the course.
+    var hasFallenOff: Bool {
+        ballNode.position.y < -2.0
     }
 
     func updateState() {
@@ -103,6 +108,7 @@ class BallController {
     // MARK: - Reset
 
     func resetToLastPosition() {
+        ballNode.removeAllActions()
         ballNode.physicsBody?.velocity = SCNVector3Zero
         ballNode.physicsBody?.angularVelocity = SCNVector4Zero
         ballNode.position = lastRestPosition
