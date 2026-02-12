@@ -3,44 +3,20 @@
     <dependencies>
         <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="13104.12"/>
         <capability name="Safe area layout guides" minToolsVersion="9.0"/>
-        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
-        <!--View Controller-->
         <scene sceneID="EHf-IW-A2E">
             <objects>
                 <viewController id="01J-lp-oVM" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <subviews>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="club-green" translatesAutoresizingMaskIntoConstraints="NO" id="img-01-club">
-                                <rect key="frame" x="112.5" y="233.5" width="150" height="150"/>
-                                <constraints>
-                                    <constraint firstAttribute="width" constant="150" id="w-img-01"/>
-                                    <constraint firstAttribute="height" constant="150" id="h-img-01"/>
-                                </constraints>
-                            </imageView>
-                            <activityIndicatorView opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" style="large" color="white" translatesAutoresizingMaskIntoConstraints="NO" id="act-01-spin">
-                                <rect key="frame" x="169" y="413.5" width="37" height="37"/>
-                            </activityIndicatorView>
-                        </subviews>
-                        <color key="backgroundColor" red="0.176" green="0.545" blue="0.306" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                        <constraints>
-                            <constraint firstItem="img-01-club" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="cx-img"/>
-                            <constraint firstItem="img-01-club" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" constant="-25" id="cy-img"/>
-                            <constraint firstItem="act-01-spin" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="cx-spin"/>
-                            <constraint firstItem="act-01-spin" firstAttribute="top" secondItem="img-01-club" secondAttribute="bottom" constant="30" id="top-spin"/>
-                        </constraints>
+                        <color key="backgroundColor" red="0.35" green="0.58" blue="0.78" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                     </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="53" y="375"/>
         </scene>
     </scenes>
-    <resources>
-        <image name="club-green" width="150" height="150"/>
-    </resources>
 </document>

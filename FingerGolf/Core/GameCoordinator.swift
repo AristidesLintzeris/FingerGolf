@@ -20,7 +20,7 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
     private let barrierRipple = BarrierRippleEffect()
     let trajectoryPreview = TrajectoryPreview()
     let editorController = EditorController()
-    let cloudKitManager = CloudKitManager.shared
+    lazy var cloudKitManager = CloudKitManager.shared
 
     // Hand tracking components
     let cameraManager = CameraManager()

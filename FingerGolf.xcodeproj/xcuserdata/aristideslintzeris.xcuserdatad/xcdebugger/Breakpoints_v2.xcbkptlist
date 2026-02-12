@@ -20,7 +20,49 @@
             landmarkType = "3">
             <Locations>
                <Location
-                  uuid = "C8CD0FBB-23A8-4907-8E9F-A9C7B2881B4A - 1b2a24e1c12c0c7c"
+                  uuid = "C8CD0FBB-23A8-4907-8E9F-A9C7B2881B4A - 5b8940711a1c0d5c"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "FingerGolf.GameViewController.findCourseHostingController.getter : Swift.Optional&lt;SwiftUI.UIHostingController&lt;FingerGolf.FindCourseView&gt;&gt;"
+                  moduleName = "FingerGolf.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/GameViewController.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "0"
+                  endingLineNumber = "0">
+               </Location>
+               <Location
+                  uuid = "C8CD0FBB-23A8-4907-8E9F-A9C7B2881B4A - c82780ff9a21c948"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "FingerGolf.GameViewController.findCourseHostingController.setter : Swift.Optional&lt;SwiftUI.UIHostingController&lt;FingerGolf.FindCourseView&gt;&gt;"
+                  moduleName = "FingerGolf.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/GameViewController.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "0"
+                  endingLineNumber = "0">
+               </Location>
+               <Location
+                  uuid = "C8CD0FBB-23A8-4907-8E9F-A9C7B2881B4A - ee8da442b1ac7218"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "FingerGolf.GameViewController.findCourseHostingController.modify : Swift.Optional&lt;SwiftUI.UIHostingController&lt;FingerGolf.FindCourseView&gt;&gt;"
+                  moduleName = "FingerGolf.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/GameViewController.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "33"
+                  endingLineNumber = "33">
+               </Location>
+               <Location
+                  uuid = "C8CD0FBB-23A8-4907-8E9F-A9C7B2881B4A - 1b2a24e1c12c0bba"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -30,11 +72,11 @@
                   urlString = "file:///Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/GameViewController.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "35"
-                  endingLineNumber = "35">
+                  startingLineNumber = "33"
+                  endingLineNumber = "33">
                </Location>
                <Location
-                  uuid = "C8CD0FBB-23A8-4907-8E9F-A9C7B2881B4A - bd641e717e800638"
+                  uuid = "C8CD0FBB-23A8-4907-8E9F-A9C7B2881B4A - bd641e717e8001fe"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
@@ -44,8 +86,8 @@
                   urlString = "file:///Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/GameViewController.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "35"
-                  endingLineNumber = "35">
+                  startingLineNumber = "33"
+                  endingLineNumber = "33">
                </Location>
             </Locations>
          </BreakpointContent>

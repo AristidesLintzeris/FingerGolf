@@ -50,7 +50,7 @@ class HandTrackingCoordinator: ObservableObject {
     private let velocityKalman = KalmanScalar(q: 0.01, r: 0.1)
 
     private var cancellables = Set<AnyCancellable>()
-    private var viewSize: CGSize = UIScreen.main.bounds.size
+    private var viewSize: CGSize = CGSize(width: 393, height: 852) // Updated by viewDidLayoutSubviews
 
     // MARK: - Initialization
 

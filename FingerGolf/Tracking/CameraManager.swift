@@ -7,8 +7,9 @@ class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSampleB
 
     // MARK: - Properties
 
-    private let captureSession = AVCaptureSession()
-    private let videoOutput = AVCaptureVideoDataOutput()
+    nonisolated(unsafe) private let captureSession = AVCaptureSession()
+    nonisolated(unsafe) private let videoOutput = AVCaptureVideoDataOutput()
+    nonisolated(unsafe) private var isConfigured = false
     private let sessionQueue = DispatchQueue(label: "com.fingergolf.sessionQueue")
 
     nonisolated let pixelBufferPublisher = PassthroughSubject<CVPixelBuffer, Never>()
@@ -20,7 +21,9 @@ class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSampleB
 
     override init() {
         super.init()
-        setupSession()
+        // Don't configure session here — defer until startSession() is called
+        // after camera permission is granted. This avoids blocking the main thread
+        // and avoids AVFoundation work before permissions are ready.
     }
 
     // MARK: - Permission
@@ -33,9 +36,6 @@ class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSampleB
             AVCaptureDevice.requestAccess(for: .video) { granted in
                 Task { @MainActor in
                     self.permissionGranted = granted
-                    if granted {
-                        self.startSession()
-                    }
                 }
             }
         case .denied, .restricted:
@@ -45,65 +45,63 @@ class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSampleB
         }
     }
 
-    // MARK: - Session Setup
+    // MARK: - Session Setup (runs on sessionQueue, off main thread)
 
-    private func setupSession() {
-        Task { @MainActor in
-            captureSession.beginConfiguration()
-            captureSession.sessionPreset = .high
+    nonisolated private func configureSession() {
+        guard !isConfigured else { return }
 
-            // Front camera - prefer ultra-wide for larger FOV
-            let discovery = AVCaptureDevice.DiscoverySession(
-                deviceTypes: [.builtInUltraWideCamera, .builtInWideAngleCamera],
-                mediaType: .video,
-                position: .front
-            )
+        captureSession.beginConfiguration()
+        captureSession.sessionPreset = .high
 
-            guard let videoDevice = discovery.devices.first,
-                  let videoDeviceInput = try? AVCaptureDeviceInput(device: videoDevice),
-                  captureSession.canAddInput(videoDeviceInput) else {
-                print("CameraManager: Could not create video device input.")
-                captureSession.commitConfiguration()
-                return
-            }
-            captureSession.addInput(videoDeviceInput)
+        // Front camera - prefer ultra-wide for larger FOV
+        let discovery = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.builtInUltraWideCamera, .builtInWideAngleCamera],
+            mediaType: .video,
+            position: .front
+        )
 
-            // Configure video output
-            if captureSession.canAddOutput(videoOutput) {
-                await withCheckedContinuation { continuation in
-                    sessionQueue.async {
-                        self.videoOutput.setSampleBufferDelegate(self, queue: self.sessionQueue)
-                        continuation.resume()
-                    }
-                }
-                videoOutput.videoSettings = [
-                    kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
-                ]
-                captureSession.addOutput(videoOutput)
-
-                // Set rotation for portrait
-                if let connection = videoOutput.connection(with: .video) {
-                    let coordinator = AVCaptureDevice.RotationCoordinator(
-                        device: videoDevice, previewLayer: nil
-                    )
-                    if connection.isVideoRotationAngleSupported(coordinator.videoRotationAngleForHorizonLevelCapture) {
-                        connection.videoRotationAngle = coordinator.videoRotationAngleForHorizonLevelCapture
-                    }
-                }
-            }
-
+        guard let videoDevice = discovery.devices.first,
+              let videoDeviceInput = try? AVCaptureDeviceInput(device: videoDevice),
+              captureSession.canAddInput(videoDeviceInput) else {
+            print("CameraManager: Could not create video device input.")
             captureSession.commitConfiguration()
+            return
         }
+        captureSession.addInput(videoDeviceInput)
+
+        // Configure video output
+        if captureSession.canAddOutput(videoOutput) {
+            videoOutput.setSampleBufferDelegate(self, queue: sessionQueue)
+            videoOutput.videoSettings = [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+            ]
+            captureSession.addOutput(videoOutput)
+
+            // Set rotation for portrait
+            if let connection = videoOutput.connection(with: .video) {
+                let coordinator = AVCaptureDevice.RotationCoordinator(
+                    device: videoDevice, previewLayer: nil
+                )
+                if connection.isVideoRotationAngleSupported(coordinator.videoRotationAngleForHorizonLevelCapture) {
+                    connection.videoRotationAngle = coordinator.videoRotationAngleForHorizonLevelCapture
+                }
+            }
+        }
+
+        captureSession.commitConfiguration()
+        isConfigured = true
     }
 
-    // MARK: - Session Control
+    // MARK: - Session Control (runs on sessionQueue, off main thread)
 
     func startSession() {
-        guard !captureSession.isRunning else { return }
         sessionQueue.async { [weak self] in
             guard let self else { return }
+            // Configure on first start (always on sessionQueue, never main thread)
+            self.configureSession()
+            guard !self.captureSession.isRunning else { return }
+            self.captureSession.startRunning()
             Task { @MainActor in
-                self.captureSession.startRunning()
                 self.isSessionRunning = true
             }
         }
@@ -112,9 +110,9 @@ class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSampleB
     func stopSession() {
         sessionQueue.async { [weak self] in
             guard let self else { return }
-            Task { @MainActor in
-                if self.captureSession.isRunning {
-                    self.captureSession.stopRunning()
+            if self.captureSession.isRunning {
+                self.captureSession.stopRunning()
+                Task { @MainActor in
                     self.isSessionRunning = false
                 }
             }

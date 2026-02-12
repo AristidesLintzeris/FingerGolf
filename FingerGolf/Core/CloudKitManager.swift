@@ -5,8 +5,8 @@ class CloudKitManager: ObservableObject {
 
     static let shared = CloudKitManager()
 
-    private let container = CKContainer.default()
-    private let publicDB: CKDatabase
+    private lazy var container = CKContainer.default()
+    private lazy var publicDB: CKDatabase = container.publicCloudDatabase
 
     @Published var communityCourses: [UserCourse] = []
     @Published var leaderboard: [LeaderboardEntry] = []
@@ -20,9 +20,7 @@ class CloudKitManager: ObservableObject {
         let date: Date
     }
 
-    private init() {
-        publicDB = container.publicCloudDatabase
-    }
+    private init() {}
 
     // MARK: - Publish Course
 

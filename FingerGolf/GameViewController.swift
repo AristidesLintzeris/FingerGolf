@@ -3,21 +3,23 @@ import QuartzCore
 import SceneKit
 import Combine
 import SwiftUI
+import AVFoundation
 
 class GameViewController: UIViewController, SCNSceneRendererDelegate {
 
     // MARK: - Properties
 
     private var scnView: SCNView!
-    private let gameCoordinator = GameCoordinator()
+    private var gameCoordinator: GameCoordinator?
     private var cancellables = Set<AnyCancellable>()
+    private var isGameReady = false
 
     // Touch tracking for club placement and aim
     private var touchStartPosition: SCNVector3?
     private var isDragging = false
 
     // Hand tracking overlay
-    private var fingerDotsOverlay: FingerDotsOverlay!
+    private var fingerDotsOverlay: FingerDotsOverlay?
 
     // UI overlays
     private var hudHostingController: UIHostingController<GameHUDView>?
@@ -37,48 +39,91 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
 
     // MARK: - Lifecycle
 
+    override func loadView() {
+        // Create a plain UIView — NOT an SCNView from storyboard.
+        // SCNView will be added as a subview AFTER camera permission.
+        self.view = UIView()
+        self.view.backgroundColor = UIColor(red: 0.35, green: 0.58, blue: 0.78, alpha: 1.0)
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
+        print("[FingerGolf] viewDidLoad start")
 
-        scnView = self.view as? SCNView
-        scnView.scene = gameCoordinator.sceneManager.scene
+        // Request camera permission FIRST — shows system dialog, then sets up game
+        Task {
+            let granted = await AVCaptureDevice.requestAccess(for: .video)
+            print("[FingerGolf] Camera permission: \(granted)")
+            self.setupGame()
+        }
+    }
+
+    // MARK: - Async Game Setup
+
+    private func setupGame() {
+        print("[FingerGolf] setupGame start")
+        let t0 = CACurrentMediaTime()
+
+        // Phase 1: Create SCNView programmatically
+        let sceneView = SCNView(frame: view.bounds)
+        sceneView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        sceneView.backgroundColor = .clear
+        sceneView.antialiasingMode = .multisampling4X
+        sceneView.isPlaying = true
+        view.insertSubview(sceneView, at: 0)
+        scnView = sceneView
+        print("[FingerGolf] SCNView created: \(String(format: "%.0f", (CACurrentMediaTime() - t0) * 1000))ms")
+
+        // Phase 2: Create game coordinator
+        let t1 = CACurrentMediaTime()
+        let coordinator = GameCoordinator()
+        gameCoordinator = coordinator
+        print("[FingerGolf] GameCoordinator created: \(String(format: "%.0f", (CACurrentMediaTime() - t1) * 1000))ms")
+
+        // Phase 3: Wire up the scene
+        scnView.scene = coordinator.sceneManager.scene
         scnView.delegate = self
         scnView.allowsCameraControl = false
         scnView.showsStatistics = false
-        scnView.backgroundColor = .clear
-        scnView.antialiasingMode = .multisampling4X
-        scnView.isPlaying = true
 
+        // Phase 4: Setup gestures, HUD, overlays
         setupGestures()
         setupFingerDotsOverlay()
         setupHUD()
         observeGameState()
         observePermission()
 
-        // Request camera permission immediately on launch
-        gameCoordinator.startHandTracking()
+        // Phase 5: Start hand tracking (camera already permitted)
+        coordinator.startHandTracking()
 
-        // Start with menu
+        isGameReady = true
+        print("[FingerGolf] Setup complete: \(String(format: "%.0f", (CACurrentMediaTime() - t0) * 1000))ms total")
+
+        // Show main menu
         showMainMenu()
     }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        gameCoordinator.handTrackingCoordinator.setViewSize(view.bounds.size)
+        gameCoordinator?.handTrackingCoordinator.setViewSize(view.bounds.size)
     }
 
     // MARK: - Finger Dots Overlay
 
     private func setupFingerDotsOverlay() {
-        fingerDotsOverlay = FingerDotsOverlay(frame: view.bounds)
-        fingerDotsOverlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        view.addSubview(fingerDotsOverlay)
-        fingerDotsOverlay.bind(to: gameCoordinator.handTrackingCoordinator)
+        guard let coordinator = gameCoordinator else { return }
+        let overlay = FingerDotsOverlay(frame: view.bounds)
+        overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.addSubview(overlay)
+        overlay.bind(to: coordinator.handTrackingCoordinator)
+        fingerDotsOverlay = overlay
     }
 
     // MARK: - Gesture Setup
 
     private func setupGestures() {
+        guard let scnView else { return }
+
         // Pan gesture for club aim
         let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
         scnView.addGestureRecognizer(panGesture)
@@ -108,6 +153,7 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     // MARK: - Touch Handling
 
     @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
+        guard let gameCoordinator, isGameReady else { return }
         let location = gesture.location(in: scnView)
 
         if gameCoordinator.gameState == .editing {
@@ -124,6 +170,7 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     }
 
     @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
+        guard let gameCoordinator, isGameReady else { return }
         let location = gesture.location(in: scnView)
 
         // Route drags to editor when editing
@@ -173,6 +220,7 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     }
 
     @objc private func handleSwipe(_ gesture: UISwipeGestureRecognizer) {
+        guard let gameCoordinator, isGameReady else { return }
         guard gameCoordinator.gameState == .playing ||
               gameCoordinator.gameState == .editing else { return }
 
@@ -188,6 +236,7 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     }
 
     @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
+        guard let gameCoordinator, isGameReady else { return }
         guard gameCoordinator.gameState == .playing ||
               gameCoordinator.gameState == .editing else { return }
         guard let camera = gameCoordinator.sceneManager.cameraNode.camera else { return }
@@ -203,6 +252,7 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     // MARK: - Hit Testing
 
     private func hitTestCoursePosition(at screenPoint: CGPoint) -> SCNVector3? {
+        guard let scnView else { return nil }
         let hitResults = scnView.hitTest(screenPoint, options: [
             .searchMode: SCNHitTestSearchMode.closest.rawValue
         ])
@@ -223,6 +273,7 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     }
 
     private func hitTestEditorPosition(at screenPoint: CGPoint) -> SCNVector3? {
+        guard let scnView else { return nil }
         // For editor, project onto Y=0 plane using unprojectPoint
         let near = scnView.unprojectPoint(SCNVector3(Float(screenPoint.x), Float(screenPoint.y), 0))
         let far = scnView.unprojectPoint(SCNVector3(Float(screenPoint.x), Float(screenPoint.y), 1))
@@ -245,16 +296,17 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     // MARK: - HUD
 
     private func setupHUD() {
+        guard let gameCoordinator else { return }
         let hudView = GameHUDView(
             turnManager: gameCoordinator.turnManager,
             scoringManager: gameCoordinator.scoringManager,
             currentPar: gameCoordinator.currentPar,
-            onNextHole: { [weak self] in self?.gameCoordinator.advanceToNextHole() },
+            onNextHole: { [weak self] in self?.gameCoordinator?.advanceToNextHole() },
             onReturnToMenu: { [weak self] in
-                self?.gameCoordinator.returnToMenu()
+                self?.gameCoordinator?.returnToMenu()
             },
             onPause: { [weak self] in
-                self?.gameCoordinator.pauseGame()
+                self?.gameCoordinator?.pauseGame()
             }
         )
         let hc = UIHostingController(rootView: hudView)
@@ -275,7 +327,9 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
         hudHostingController = nil
         setupHUD()
         // Re-add finger dots on top of HUD
-        view.bringSubviewToFront(fingerDotsOverlay)
+        if let overlay = fingerDotsOverlay {
+            view.bringSubviewToFront(overlay)
+        }
     }
 
     // MARK: - Main Menu
@@ -285,13 +339,13 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
 
         let menuView = MainMenuView(
             onStartPressed: { [weak self] in
-                self?.gameCoordinator.showLevelSelect()
+                self?.gameCoordinator?.showLevelSelect()
             },
             onBuildPressed: { [weak self] in
-                self?.gameCoordinator.startEditor()
+                self?.gameCoordinator?.startEditor()
             },
             onFindCoursePressed: { [weak self] in
-                self?.gameCoordinator.showFindCourse()
+                self?.gameCoordinator?.showFindCourse()
             },
             onSettingsPressed: { [weak self] in
                 self?.showSettings(returnTo: .mainMenu)
@@ -325,6 +379,7 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     // MARK: - Level Select
 
     private func showLevelSelect() {
+        guard let gameCoordinator else { return }
         dismissLevelSelect()
 
         let levelView = LevelSelectView(
@@ -333,12 +388,12 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
             onSelectLevel: { [weak self] index in
                 self?.dismissMenu()
                 self?.dismissLevelSelect()
-                self?.gameCoordinator.startCourse(at: index)
+                self?.gameCoordinator?.startCourse(at: index)
                 self?.refreshHUD()
             },
             onBack: { [weak self] in
                 self?.dismissLevelSelect()
-                self?.gameCoordinator.returnToMenu()
+                self?.gameCoordinator?.returnToMenu()
             }
         )
         let lc = UIHostingController(rootView: levelView)
@@ -365,11 +420,11 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
 
         let pauseView = PauseMenuView(
             onResume: { [weak self] in
-                self?.gameCoordinator.unpauseGame()
+                self?.gameCoordinator?.unpauseGame()
             },
             onRestart: { [weak self] in
                 self?.dismissPauseMenu()
-                self?.gameCoordinator.restartCurrentHole()
+                self?.gameCoordinator?.restartCurrentHole()
                 self?.refreshHUD()
             },
             onSettings: { [weak self] in
@@ -377,7 +432,7 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
             },
             onQuit: { [weak self] in
                 self?.dismissPauseMenu()
-                self?.gameCoordinator.returnToMenu()
+                self?.gameCoordinator?.returnToMenu()
             }
         )
         let pc = UIHostingController(rootView: pauseView)
@@ -400,13 +455,14 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     // MARK: - Settings
 
     private func showSettings(returnTo: GameState) {
+        guard let gameCoordinator else { return }
         dismissSettings()
 
         let settingsView = SettingsView(
             settings: gameCoordinator.settings,
             onDone: { [weak self] in
                 self?.dismissSettings()
-                self?.gameCoordinator.applySettings()
+                self?.gameCoordinator?.applySettings()
                 switch returnTo {
                 case .mainMenu:
                     break // Menu is still showing behind
@@ -437,13 +493,14 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     // MARK: - Score Card
 
     private func showScoreCard() {
+        guard let gameCoordinator else { return }
         let scoreView = ScoreCardView(
             scores: gameCoordinator.scoringManager.scores,
             totalStrokes: gameCoordinator.scoringManager.totalStrokes,
             totalPar: gameCoordinator.scoringManager.totalPar,
             onReturnToMenu: { [weak self] in
                 self?.dismissScoreCard()
-                self?.gameCoordinator.returnToMenu()
+                self?.gameCoordinator?.returnToMenu()
             }
         )
         let sc = UIHostingController(rootView: scoreView)
@@ -493,28 +550,29 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     // MARK: - Level Editor
 
     private func showEditor() {
+        guard let gameCoordinator else { return }
         dismissAllOverlays()
 
         let editorView = LevelEditorView(
             editorController: gameCoordinator.editorController,
             onSave: { [weak self] in
-                _ = self?.gameCoordinator.saveEditorCourse()
+                _ = self?.gameCoordinator?.saveEditorCourse()
             },
             onTest: { [weak self] in
                 self?.dismissEditor()
-                self?.gameCoordinator.testEditorCourse()
+                self?.gameCoordinator?.testEditorCourse()
                 self?.refreshHUD()
             },
             onPublish: { [weak self] in
                 guard let self else { return }
-                if let userCourse = self.gameCoordinator.saveEditorCourse() {
+                if let userCourse = self.gameCoordinator?.saveEditorCourse() {
                     Task {
-                        try? await self.gameCoordinator.cloudKitManager.publishCourse(userCourse)
+                        try? await self.gameCoordinator?.cloudKitManager.publishCourse(userCourse)
                     }
                 }
             },
             onBack: { [weak self] in
-                self?.gameCoordinator.exitEditor()
+                self?.gameCoordinator?.exitEditor()
             }
         )
         let ec = UIHostingController(rootView: editorView)
@@ -538,18 +596,19 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     // MARK: - Find Course
 
     private func showFindCourse() {
+        guard let gameCoordinator else { return }
         dismissAllOverlays()
 
         let findView = FindCourseView(
             cloudKitManager: gameCoordinator.cloudKitManager,
             onSelectCourse: { [weak self] userCourse in
                 self?.dismissFindCourse()
-                self?.gameCoordinator.playCommunityLevel(userCourse)
+                self?.gameCoordinator?.playCommunityLevel(userCourse)
                 self?.refreshHUD()
             },
             onBack: { [weak self] in
                 self?.dismissFindCourse()
-                self?.gameCoordinator.returnToMenu()
+                self?.gameCoordinator?.returnToMenu()
             }
         )
         let fc = UIHostingController(rootView: findView)
@@ -572,7 +631,8 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     // MARK: - Leaderboard
 
     private func showLeaderboard() {
-        guard let recordID = gameCoordinator.currentCommunityRecordID else { return }
+        guard let gameCoordinator,
+              let recordID = gameCoordinator.currentCommunityRecordID else { return }
 
         Task {
             await gameCoordinator.cloudKitManager.fetchLeaderboard(courseRecordName: recordID)
@@ -585,7 +645,7 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
             par: gameCoordinator.courseManager.currentCourse?.par ?? 3,
             onDone: { [weak self] in
                 self?.dismissLeaderboard()
-                self?.gameCoordinator.returnToMenu()
+                self?.gameCoordinator?.returnToMenu()
             }
         )
         let lc = UIHostingController(rootView: leaderboardView)
@@ -633,7 +693,7 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     // MARK: - Game State Observation
 
     private func observeGameState() {
-        gameCoordinator.$gameState
+        gameCoordinator?.$gameState
             .receive(on: RunLoop.main)
             .sink { [weak self] state in
                 guard let self else { return }
@@ -650,7 +710,7 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
                 case .paused:
                     self.showPauseMenu()
                 case .courseComplete:
-                    if self.gameCoordinator.currentCommunityRecordID != nil {
+                    if self.gameCoordinator?.currentCommunityRecordID != nil {
                         self.showLeaderboard()
                     } else {
                         self.showScoreCard()
@@ -667,7 +727,7 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     }
 
     private func observePermission() {
-        gameCoordinator.$cameraPermissionDenied
+        gameCoordinator?.$cameraPermissionDenied
             .receive(on: RunLoop.main)
             .sink { [weak self] denied in
                 if denied {
