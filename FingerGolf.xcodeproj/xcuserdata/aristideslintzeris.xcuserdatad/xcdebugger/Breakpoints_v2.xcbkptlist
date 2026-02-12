@@ -18,6 +18,36 @@
             endingLineNumber = "33"
             landmarkName = "GameViewController"
             landmarkType = "3">
+            <Locations>
+               <Location
+                  uuid = "C8CD0FBB-23A8-4907-8E9F-A9C7B2881B4A - 1b2a24e1c12c0c7c"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "FingerGolf.GameViewController.init(nibName: Swift.Optional&lt;Swift.String&gt;, bundle: Swift.Optional&lt;__C.NSBundle&gt;) -&gt; FingerGolf.GameViewController"
+                  moduleName = "FingerGolf.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/GameViewController.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "35"
+                  endingLineNumber = "35">
+               </Location>
+               <Location
+                  uuid = "C8CD0FBB-23A8-4907-8E9F-A9C7B2881B4A - bd641e717e800638"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "FingerGolf.GameViewController.init(coder: __C.NSCoder) -&gt; Swift.Optional&lt;FingerGolf.GameViewController&gt;"
+                  moduleName = "FingerGolf.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/aristideslintzeris/Documents/XcodeProjects/FingerGolf/FingerGolf/GameViewController.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "35"
+                  endingLineNumber = "35">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

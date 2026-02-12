@@ -27,6 +27,9 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     private var levelSelectHostingController: UIHostingController<LevelSelectView>?
     private var pauseHostingController: UIHostingController<PauseMenuView>?
     private var settingsHostingController: UIHostingController<SettingsView>?
+    private var editorHostingController: UIHostingController<LevelEditorView>?
+    private var findCourseHostingController: UIHostingController<FindCourseView>?
+    private var leaderboardHostingController: UIHostingController<LeaderboardView>?
 
     // Pinch zoom
     private let minOrthoScale: Double = 1.5
@@ -105,17 +108,33 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     // MARK: - Touch Handling
 
     @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
+        let location = gesture.location(in: scnView)
+
+        if gameCoordinator.gameState == .editing {
+            guard let worldPosition = hitTestEditorPosition(at: location) else { return }
+            gameCoordinator.editorController.handleEditorTap(at: worldPosition)
+            return
+        }
+
         guard gameCoordinator.gameState == .playing else { return }
         guard gameCoordinator.turnManager.state == .placingClub else { return }
 
-        let location = gesture.location(in: scnView)
         guard let worldPosition = hitTestCoursePosition(at: location) else { return }
-
         gameCoordinator.handleClubPlacement(at: worldPosition)
     }
 
     @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
         let location = gesture.location(in: scnView)
+
+        // Route drags to editor when editing
+        if gameCoordinator.gameState == .editing {
+            if gesture.state == .changed || gesture.state == .began {
+                if let worldPosition = hitTestEditorPosition(at: location) {
+                    gameCoordinator.editorController.handleEditorDrag(at: worldPosition)
+                }
+            }
+            return
+        }
 
         switch gesture.state {
         case .began:
@@ -154,17 +173,23 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
     }
 
     @objc private func handleSwipe(_ gesture: UISwipeGestureRecognizer) {
-        guard gameCoordinator.gameState == .playing else { return }
+        guard gameCoordinator.gameState == .playing ||
+              gameCoordinator.gameState == .editing else { return }
 
         if gesture.direction == .left {
             gameCoordinator.sceneManager.rotateToNextAngle()
         } else if gesture.direction == .right {
             gameCoordinator.sceneManager.rotateToPreviousAngle()
         }
+
+        if gameCoordinator.gameState == .editing {
+            gameCoordinator.editorController.updateCameraLabel()
+        }
     }
 
     @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
-        guard gameCoordinator.gameState == .playing else { return }
+        guard gameCoordinator.gameState == .playing ||
+              gameCoordinator.gameState == .editing else { return }
         guard let camera = gameCoordinator.sceneManager.cameraNode.camera else { return }
 
         if gesture.state == .changed {
@@ -195,6 +220,20 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
         }
 
         return nil
+    }
+
+    private func hitTestEditorPosition(at screenPoint: CGPoint) -> SCNVector3? {
+        // For editor, project onto Y=0 plane using unprojectPoint
+        let near = scnView.unprojectPoint(SCNVector3(Float(screenPoint.x), Float(screenPoint.y), 0))
+        let far = scnView.unprojectPoint(SCNVector3(Float(screenPoint.x), Float(screenPoint.y), 1))
+
+        let direction = simd_float3(far.x - near.x, far.y - near.y, far.z - near.z)
+        guard direction.y != 0 else { return nil }
+
+        let t = -near.y / direction.y
+        let x = near.x + direction.x * t
+        let z = near.z + direction.z * t
+        return SCNVector3(x, 0, z)
     }
 
     // MARK: - SCNSceneRendererDelegate
@@ -247,6 +286,12 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
         let menuView = MainMenuView(
             onStartPressed: { [weak self] in
                 self?.gameCoordinator.showLevelSelect()
+            },
+            onBuildPressed: { [weak self] in
+                self?.gameCoordinator.startEditor()
+            },
+            onFindCoursePressed: { [weak self] in
+                self?.gameCoordinator.showFindCourse()
             },
             onSettingsPressed: { [weak self] in
                 self?.showSettings(returnTo: .mainMenu)
@@ -445,6 +490,132 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
         permissionHostingController = nil
     }
 
+    // MARK: - Level Editor
+
+    private func showEditor() {
+        dismissAllOverlays()
+
+        let editorView = LevelEditorView(
+            editorController: gameCoordinator.editorController,
+            onSave: { [weak self] in
+                _ = self?.gameCoordinator.saveEditorCourse()
+            },
+            onTest: { [weak self] in
+                self?.dismissEditor()
+                self?.gameCoordinator.testEditorCourse()
+                self?.refreshHUD()
+            },
+            onPublish: { [weak self] in
+                guard let self else { return }
+                if let userCourse = self.gameCoordinator.saveEditorCourse() {
+                    Task {
+                        try? await self.gameCoordinator.cloudKitManager.publishCourse(userCourse)
+                    }
+                }
+            },
+            onBack: { [weak self] in
+                self?.gameCoordinator.exitEditor()
+            }
+        )
+        let ec = UIHostingController(rootView: editorView)
+        ec.view.backgroundColor = .clear
+        ec.view.isUserInteractionEnabled = true
+        addChild(ec)
+        view.addSubview(ec.view)
+        ec.view.frame = view.bounds
+        ec.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        ec.didMove(toParent: self)
+        editorHostingController = ec
+    }
+
+    private func dismissEditor() {
+        editorHostingController?.willMove(toParent: nil)
+        editorHostingController?.view.removeFromSuperview()
+        editorHostingController?.removeFromParent()
+        editorHostingController = nil
+    }
+
+    // MARK: - Find Course
+
+    private func showFindCourse() {
+        dismissAllOverlays()
+
+        let findView = FindCourseView(
+            cloudKitManager: gameCoordinator.cloudKitManager,
+            onSelectCourse: { [weak self] userCourse in
+                self?.dismissFindCourse()
+                self?.gameCoordinator.playCommunityLevel(userCourse)
+                self?.refreshHUD()
+            },
+            onBack: { [weak self] in
+                self?.dismissFindCourse()
+                self?.gameCoordinator.returnToMenu()
+            }
+        )
+        let fc = UIHostingController(rootView: findView)
+        fc.view.backgroundColor = UIColor(red: 0.05, green: 0.1, blue: 0.15, alpha: 0.95)
+        addChild(fc)
+        view.addSubview(fc.view)
+        fc.view.frame = view.bounds
+        fc.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        fc.didMove(toParent: self)
+        findCourseHostingController = fc
+    }
+
+    private func dismissFindCourse() {
+        findCourseHostingController?.willMove(toParent: nil)
+        findCourseHostingController?.view.removeFromSuperview()
+        findCourseHostingController?.removeFromParent()
+        findCourseHostingController = nil
+    }
+
+    // MARK: - Leaderboard
+
+    private func showLeaderboard() {
+        guard let recordID = gameCoordinator.currentCommunityRecordID else { return }
+
+        Task {
+            await gameCoordinator.cloudKitManager.fetchLeaderboard(courseRecordName: recordID)
+        }
+
+        let leaderboardView = LeaderboardView(
+            cloudKitManager: gameCoordinator.cloudKitManager,
+            courseName: gameCoordinator.courseManager.currentCourse?.name ?? "Course",
+            playerStrokes: gameCoordinator.turnManager.strokeCount,
+            par: gameCoordinator.courseManager.currentCourse?.par ?? 3,
+            onDone: { [weak self] in
+                self?.dismissLeaderboard()
+                self?.gameCoordinator.returnToMenu()
+            }
+        )
+        let lc = UIHostingController(rootView: leaderboardView)
+        lc.view.backgroundColor = UIColor.black.withAlphaComponent(0.6)
+        addChild(lc)
+        view.addSubview(lc.view)
+        lc.view.frame = view.bounds
+        lc.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        lc.didMove(toParent: self)
+        leaderboardHostingController = lc
+
+        // Submit score
+        Task {
+            let playerName = await gameCoordinator.cloudKitManager.fetchPlayerName()
+            try? await gameCoordinator.cloudKitManager.submitScore(
+                courseRecordName: recordID,
+                strokes: gameCoordinator.turnManager.strokeCount,
+                playerName: playerName
+            )
+            await gameCoordinator.cloudKitManager.fetchLeaderboard(courseRecordName: recordID)
+        }
+    }
+
+    private func dismissLeaderboard() {
+        leaderboardHostingController?.willMove(toParent: nil)
+        leaderboardHostingController?.view.removeFromSuperview()
+        leaderboardHostingController?.removeFromParent()
+        leaderboardHostingController = nil
+    }
+
     // MARK: - Helpers
 
     private func dismissAllOverlays() {
@@ -454,6 +625,9 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
         dismissSettings()
         dismissScoreCard()
         dismissPermissionView()
+        dismissEditor()
+        dismissFindCourse()
+        dismissLeaderboard()
     }
 
     // MARK: - Game State Observation
@@ -471,11 +645,20 @@ class GameViewController: UIViewController, SCNSceneRendererDelegate {
                 case .playing:
                     self.dismissPauseMenu()
                     self.dismissLevelSelect()
+                    self.dismissEditor()
                     self.refreshHUD()
                 case .paused:
                     self.showPauseMenu()
                 case .courseComplete:
-                    self.showScoreCard()
+                    if self.gameCoordinator.currentCommunityRecordID != nil {
+                        self.showLeaderboard()
+                    } else {
+                        self.showScoreCard()
+                    }
+                case .editing:
+                    self.showEditor()
+                case .findCourse:
+                    self.showFindCourse()
                 default:
                     break
                 }

@@ -7,4 +7,6 @@ enum GameState {
     case holeComplete
     case courseComplete
     case paused
+    case editing
+    case findCourse
 }

@@ -47,6 +47,10 @@ class CourseManager {
         currentCourseIndex = 0
     }
 
+    func appendCourse(_ definition: CourseDefinition) {
+        courses.append(definition)
+    }
+
     // MARK: - Building
 
     func buildCurrentCourse() -> SCNNode? {
@@ -197,6 +201,52 @@ class CourseManager {
             ],
             ballStart: GridPosition(x: 0, z: 0),
             holePosition: GridPosition(x: 5, z: -3)
+        ),
+        // Level 7: "Split Corridor" - Par 7, tunnel + walls + open area
+        CourseDefinition(
+            name: "Split Corridor",
+            par: 7,
+            pieces: [
+                PiecePlacement(model: "corner", x: -2, z: -2, rotation: 180),
+                PiecePlacement(model: "side", x: -1, z: -2, rotation: 90),
+                PiecePlacement(model: "side", x: 0, z: -2, rotation: 90),
+                PiecePlacement(model: "side", x: 1, z: -2, rotation: 90),
+                PiecePlacement(model: "corner", x: 2, z: -2, rotation: 90),
+                PiecePlacement(model: "side", x: -2, z: -1, rotation: 180),
+                PiecePlacement(model: "open", x: -1, z: -1, rotation: 90),
+                PiecePlacement(model: "open", x: 0, z: -1, rotation: 90),
+                PiecePlacement(model: "open", x: 1, z: -1, rotation: 90),
+                PiecePlacement(model: "side", x: 2, z: -1),
+                PiecePlacement(model: "corner", x: -8, z: 0, rotation: 180),
+                PiecePlacement(model: "side", x: -7, z: 0, rotation: 90),
+                PiecePlacement(model: "tunnel-double", x: -6, z: 0, rotation: 270),
+                PiecePlacement(model: "split", x: -5, z: 0, rotation: 270),
+                PiecePlacement(model: "split", x: -4, z: 0, rotation: 270),
+                PiecePlacement(model: "split", x: -3, z: 0, rotation: 270),
+                PiecePlacement(model: "split-walls-to-open", x: -2, z: 0, rotation: 90),
+                PiecePlacement(model: "open", x: -1, z: 0, rotation: 90),
+                PiecePlacement(model: "open", x: 0, z: 0, rotation: 90),
+                PiecePlacement(model: "open", x: 1, z: 0, rotation: 90),
+                PiecePlacement(model: "side", x: 2, z: 0),
+                PiecePlacement(model: "corner", x: -8, z: 1, rotation: 270),
+                PiecePlacement(model: "wall-left", x: -7, z: 1, rotation: 270),
+                PiecePlacement(model: "wall-right", x: -6, z: 1, rotation: 270),
+                PiecePlacement(model: "wall-left", x: -5, z: 1, rotation: 270),
+                PiecePlacement(model: "wall-right", x: -4, z: 1, rotation: 270),
+                PiecePlacement(model: "wall-left", x: -3, z: 1, rotation: 90),
+                PiecePlacement(model: "side", x: -2, z: 1, rotation: 180),
+                PiecePlacement(model: "open", x: -1, z: 1, rotation: 90),
+                PiecePlacement(model: "open", x: 0, z: 1, rotation: 90),
+                PiecePlacement(model: "open", x: 1, z: 1, rotation: 90),
+                PiecePlacement(model: "side", x: 2, z: 1),
+                PiecePlacement(model: "corner", x: -2, z: 2, rotation: 270),
+                PiecePlacement(model: "side", x: -1, z: 2, rotation: 270),
+                PiecePlacement(model: "side", x: 0, z: 2, rotation: 270),
+                PiecePlacement(model: "side", x: 1, z: 2, rotation: 270),
+                PiecePlacement(model: "corner", x: 2, z: 2),
+            ],
+            ballStart: GridPosition(x: 0, z: 0),
+            holePosition: GridPosition(x: -3, z: 1)
         ),
     ]
 }

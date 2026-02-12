@@ -3,6 +3,8 @@ import SwiftUI
 struct MainMenuView: View {
 
     var onStartPressed: () -> Void
+    var onBuildPressed: () -> Void
+    var onFindCoursePressed: () -> Void
     var onSettingsPressed: () -> Void
 
     var body: some View {
@@ -39,6 +41,36 @@ struct MainMenuView: View {
                                 .resizable()
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+
+                Button(action: onBuildPressed) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "pencil.and.ruler.fill")
+                        Text("BUILD")
+                    }
+                    .bodyStyle(size: 16)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        Image("GameUI/button_rectangle_depth_flat")
+                            .resizable()
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+
+                Button(action: onFindCoursePressed) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "globe")
+                        Text("FIND COURSE")
+                    }
+                    .bodyStyle(size: 16)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        Image("GameUI/button_rectangle_depth_flat")
+                            .resizable()
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
 
                 Button(action: onSettingsPressed) {

@@ -18,6 +18,9 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
     private(set) var physicsManager: PhysicsManager!
     private(set) var holeDetector: HoleDetector!
     private let barrierRipple = BarrierRippleEffect()
+    let trajectoryPreview = TrajectoryPreview()
+    let editorController = EditorController()
+    let cloudKitManager = CloudKitManager.shared
 
     // Hand tracking components
     let cameraManager = CameraManager()
@@ -91,11 +94,33 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
                         self.handleSwing(power: power)
                         self.handTrackingCoordinator.resetForNewSwing()
                     }
+                case .pinching:
+                    if self.turnManager.state == .readyToSwing,
+                       let direction = self.clubController.aimDirection {
+                        self.trajectoryPreview.update(
+                            ballPosition: self.ballController.ballNode.position,
+                            aimDirection: direction,
+                            power: 0.3,
+                            maxSwingPower: Float(self.settings.maxSwingPower),
+                            bright: false
+                        )
+                    }
+                case .flickInProgress:
+                    if self.turnManager.state == .readyToSwing,
+                       let direction = self.clubController.aimDirection {
+                        self.trajectoryPreview.update(
+                            ballPosition: self.ballController.ballNode.position,
+                            aimDirection: direction,
+                            power: 0.7,
+                            maxSwingPower: Float(self.settings.maxSwingPower),
+                            bright: true
+                        )
+                    }
                 case .noHand:
                     if self.turnManager.state == .readyToSwing {
-                        // Hand lost before swing - reset club
                         self.turnManager.advanceState(.handLost)
                         self.clubController.hideClub()
+                        self.trajectoryPreview.hide()
                     }
                 default:
                     break
@@ -146,6 +171,9 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         // Add club to scene
         clubController.addToScene(sceneManager.scene.rootNode)
 
+        // Add trajectory preview
+        trajectoryPreview.addToScene(sceneManager.scene.rootNode)
+
         // Reset turn
         turnManager.resetForNewHole()
         gameState = .playing
@@ -157,6 +185,7 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
     func completeHole() {
         guard let definition = courseManager.currentCourse else { return }
 
+        trajectoryPreview.hide()
         stopBallMonitoring()
         scoringManager.recordHoleScore(par: definition.par, strokes: turnManager.strokeCount)
 
@@ -182,6 +211,7 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
     }
 
     func returnToMenu() {
+        trajectoryPreview.hide()
         stopBallMonitoring()
         sceneManager.scene.isPaused = false
         sceneManager.clearCourse()
@@ -213,6 +243,7 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
 
     func restartCurrentHole() {
         guard let definition = courseManager.currentCourse else { return }
+        trajectoryPreview.hide()
         sceneManager.scene.isPaused = false
         stopBallMonitoring()
 
@@ -244,12 +275,24 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
     func handleAimUpdate(toward worldPosition: SCNVector3) {
         guard turnManager.state == .readyToSwing else { return }
         clubController.updateAimDirection(toward: worldPosition)
+
+        // Update trajectory preview (dim while aiming)
+        if let direction = clubController.aimDirection {
+            trajectoryPreview.update(
+                ballPosition: ballController.ballNode.position,
+                aimDirection: direction,
+                power: 0.5,
+                maxSwingPower: Float(settings.maxSwingPower),
+                bright: false
+            )
+        }
     }
 
     func handleSwing(power: CGFloat) {
         guard turnManager.state == .readyToSwing,
               let direction = clubController.aimDirection else { return }
 
+        trajectoryPreview.hide()
         turnManager.advanceState(.swingStarted)
 
         let clampedPower = min(max(power, 0.05), 1.0)
@@ -324,5 +367,69 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
 
     func physicsManager(_ manager: PhysicsManager, ballDidHitBarrier contact: SCNPhysicsContact) {
         barrierRipple.triggerRipple(at: contact.contactPoint, in: sceneManager.scene)
+    }
+
+    // MARK: - Editor
+
+    func startEditor(course: CourseDefinition? = nil) {
+        sceneManager.clearCourse()
+        ballController.ballNode.removeFromParentNode()
+        clubController.reset()
+        trajectoryPreview.hide()
+
+        editorController.sceneManager = sceneManager
+        sceneManager.scene.rootNode.addChildNode(editorController.editorRootNode)
+
+        if let course = course {
+            editorController.loadCourse(course)
+        }
+
+        sceneManager.cameraOrbitNode.position = SCNVector3(0, 0, 0)
+        sceneManager.cameraNode.camera?.orthographicScale = 6.0
+        sceneManager.setCameraAngleIndex(0)
+        editorController.updateCameraLabel()
+
+        gameState = .editing
+    }
+
+    func saveEditorCourse() -> UserCourse? {
+        let definition = editorController.toCourseDefinition()
+        guard !definition.pieces.isEmpty else { return nil }
+
+        let userCourse = UserCourse(definition: definition)
+        try? UserCourseStorage.shared.save(userCourse)
+        return userCourse
+    }
+
+    func testEditorCourse() {
+        let definition = editorController.toCourseDefinition()
+        guard !definition.pieces.isEmpty else { return }
+
+        editorController.editorRootNode.removeFromParentNode()
+
+        courseManager.appendCourse(definition)
+        let testIndex = courseManager.courses.count - 1
+        startCourse(at: testIndex)
+    }
+
+    func exitEditor() {
+        editorController.clearAll()
+        editorController.editorRootNode.removeFromParentNode()
+        gameState = .mainMenu
+    }
+
+    // MARK: - Community
+
+    private(set) var currentCommunityRecordID: String?
+
+    func showFindCourse() {
+        gameState = .findCourse
+    }
+
+    func playCommunityLevel(_ userCourse: UserCourse) {
+        currentCommunityRecordID = userCourse.cloudRecordID
+        courseManager.appendCourse(userCourse.definition)
+        let index = courseManager.courses.count - 1
+        startCourse(at: index)
     }
 }
