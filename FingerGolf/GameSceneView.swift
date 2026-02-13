@@ -57,9 +57,6 @@ struct GameSceneView: UIViewRepresentable {
             action: #selector(GestureHandler.handlePinch(_:))
         )
 
-        pan.require(toFail: swipeLeft)
-        pan.require(toFail: swipeRight)
-
         scnView.addGestureRecognizer(tap)
         scnView.addGestureRecognizer(pan)
         scnView.addGestureRecognizer(swipeLeft)
@@ -188,13 +185,18 @@ struct GameSceneView: UIViewRepresentable {
         // MARK: - Pinch (editor zoom)
 
         @objc func handlePinch(_ gesture: UIPinchGestureRecognizer) {
-            guard gameCoordinator.gameState == .editing else { return }
-            guard let camera = gameCoordinator.sceneManager.cameraNode.camera else { return }
-
-            if gesture.state == .changed {
-                let newScale = camera.orthographicScale / Double(gesture.scale)
-                camera.orthographicScale = min(max(newScale, 1.5), 8.0)
-                gesture.scale = 1.0
+            if gameCoordinator.gameState == .editing {
+                guard let camera = gameCoordinator.sceneManager.cameraNode.camera else { return }
+                if gesture.state == .changed {
+                    let newScale = camera.orthographicScale / Double(gesture.scale)
+                    camera.orthographicScale = min(max(newScale, 1.5), 8.0)
+                    gesture.scale = 1.0
+                }
+            } else if gameCoordinator.gameState == .playing {
+                if gesture.state == .changed {
+                    gameCoordinator.zoomCamera(scale: Float(gesture.scale))
+                    gesture.scale = 1.0
+                }
             }
         }
 
@@ -203,7 +205,7 @@ struct GameSceneView: UIViewRepresentable {
         /// Check if touch is within screen-space radius of ball
         private func isTouchNearBall(_ point: CGPoint) -> Bool {
             guard let scnView else { return false }
-            let ballPos = gameCoordinator.ballController.ballNode.position
+            let ballPos = gameCoordinator.ballController.worldPosition
             let ballScreen = scnView.projectPoint(ballPos)
             let dx = point.x - CGFloat(ballScreen.x)
             let dy = point.y - CGFloat(ballScreen.y)

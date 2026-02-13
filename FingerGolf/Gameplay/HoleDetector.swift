@@ -21,8 +21,10 @@ class HoleDetector {
         let v = body.velocity
         let speed = sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
 
-        let dx = ballNode.position.x - holePosition.x
-        let dz = ballNode.position.z - holePosition.z
+        // Use presentation position (actual physics position, not manually-set position)
+        let ballPos = ballNode.presentation.position
+        let dx = ballPos.x - holePosition.x
+        let dz = ballPos.z - holePosition.z
         let distance = sqrt(dx * dx + dz * dz)
 
         // Enhanced capture: very close to center allows faster balls (hole-in-one support)

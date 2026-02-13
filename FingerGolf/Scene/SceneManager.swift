@@ -13,13 +13,15 @@ class SceneManager {
     // 3rd person orbit camera (gameplay)
     private var cameraYaw: Float = 0        // Horizontal angle (radians)
     private var cameraPitch: Float = 30     // Elevation angle (degrees above horizontal)
-    private let cameraDistance: Float = 5.0
+    private var cameraDistance: Float = 5.0
+    private let cameraDistanceMin: Float = 2.5
+    private let cameraDistanceMax: Float = 10.0
     private let pitchMin: Float = 15
     private let pitchMax: Float = 75
     let rotationSpeed: Float = 0.3
 
     // Smooth follow interpolation
-    private let followSmoothFactor: Float = 0.12
+    private let followSmoothFactor: Float = 0.15
 
     // Editor mode discrete angles + orthographic
     private var currentAngleIndex = 0
@@ -65,6 +67,7 @@ class SceneManager {
         // Reset orbit to default view
         cameraYaw = 0
         cameraPitch = 30
+        cameraDistance = 5.0
         updateCameraNodePosition()
     }
 
@@ -132,8 +135,10 @@ class SceneManager {
     /// Called every frame to smoothly follow the ball
     func updateCameraFollow() {
         guard let target = followTarget else { return }
-        let tx = target.position.x
-        let tz = target.position.z
+        // Use presentation position to track actual physics-simulated position
+        let pos = target.presentation.position
+        let tx = pos.x
+        let tz = pos.z
 
         // Smooth interpolation toward target position
         let cx = cameraOrbitNode.position.x + (tx - cameraOrbitNode.position.x) * followSmoothFactor
@@ -144,7 +149,8 @@ class SceneManager {
     /// Snap camera to ball position immediately (no interpolation)
     func snapCameraToBall() {
         guard let target = followTarget else { return }
-        cameraOrbitNode.position = SCNVector3(target.position.x, 0, target.position.z)
+        let pos = target.presentation.position
+        cameraOrbitNode.position = SCNVector3(pos.x, 0, pos.z)
         updateCameraNodePosition()
     }
 
@@ -160,6 +166,13 @@ class SceneManager {
         cameraPitch += deltaY * rotationSpeed * 0.3
         cameraPitch = max(pitchMin, min(pitchMax, cameraPitch))
 
+        updateCameraNodePosition()
+    }
+
+    /// Zoom camera in/out by pinch scale factor
+    func zoomCamera(by scale: Float) {
+        cameraDistance /= scale
+        cameraDistance = max(cameraDistanceMin, min(cameraDistanceMax, cameraDistance))
         updateCameraNodePosition()
     }
 

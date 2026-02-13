@@ -16,20 +16,22 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
             geometry: SCNSphere(radius: 0.035),
             options: nil
         )
-        let body = SCNPhysicsBody(type: .dynamic, shape: shape)
+        // Start KINEMATIC - ball sits perfectly still until the player hits it.
+        // Switched to dynamic on first shot by BallController.
+        let body = SCNPhysicsBody(type: .kinematic, shape: shape)
 
         body.mass = 0.0459
-        body.restitution = 0.35
-        body.friction = 0.5
-        body.rollingFriction = 0.15
-        body.angularDamping = 0.8
-        body.damping = 0.3
+        body.restitution = 0.5
+        body.friction = 0.3
+        body.rollingFriction = 0.08
+        body.angularDamping = 0.15
+        body.damping = 0.01
 
         body.categoryBitMask = PhysicsCategory.ball
-        body.collisionBitMask = PhysicsCategory.wall | PhysicsCategory.surface | PhysicsCategory.flag
+        body.collisionBitMask = PhysicsCategory.course | PhysicsCategory.flag
         body.contactTestBitMask = PhysicsCategory.hole | PhysicsCategory.flag
 
-        body.isAffectedByGravity = true
+        body.isAffectedByGravity = false  // Off until first shot
         body.allowsResting = true
         body.continuousCollisionDetectionThreshold = 0.035
 
@@ -42,17 +44,39 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
         let (minBound, maxBound) = pieceNode.boundingBox
         let width = CGFloat(maxBound.x - minBound.x)
         let depth = CGFloat(maxBound.z - minBound.z)
+        let pieceHeight = maxBound.y - minBound.y
 
-        // Create invisible floor plane at Y=0 for smooth rolling surface.
-        // Positioned slightly above the mesh surface so the ball rolls on the
-        // smooth plane rather than the mesh triangles.
+        // 1. Wall physics from mesh - MUST be created BEFORE adding floor plane child
+        //    so the concave polyhedron only contains the original model geometry.
+        //    Only for pieces with significant height (actual walls/borders).
+        if pieceHeight > 0.08 {
+            let shape = SCNPhysicsShape(
+                node: pieceNode,
+                options: [
+                    .type: SCNPhysicsShape.ShapeType.concavePolyhedron,
+                    .collisionMargin: NSNumber(value: 0.003)
+                ]
+            )
+            let body = SCNPhysicsBody(type: .static, shape: shape)
+            body.categoryBitMask = PhysicsCategory.course
+            body.collisionBitMask = PhysicsCategory.ball
+            body.restitution = 0.5
+            body.friction = 0.2
+            pieceNode.physicsBody = body
+        }
+
+        // 2. Invisible floor plane for smooth rolling - added AFTER wall physics
+        //    so it's not included in the concave polyhedron shape.
+        //    Positioned at Y=0.035 so ball (radius 0.035) center sits at Y=0.07,
+        //    well above the mesh floor triangles (~Y=0.02-0.03).
         if width > 0.1 && depth > 0.1 {
-            let floorPlane = SCNPlane(width: width, height: depth)
+            let overlap: CGFloat = 0.02
+            let floorPlane = SCNPlane(width: width + overlap, height: depth + overlap)
             let floorNode = SCNNode(geometry: floorPlane)
             floorNode.name = "floor_plane"
             floorNode.position = SCNVector3(
                 (minBound.x + maxBound.x) / 2,
-                0.001,
+                0.035,
                 (minBound.z + maxBound.z) / 2
             )
             floorNode.eulerAngles.x = -.pi / 2
@@ -60,33 +84,13 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
 
             let floorShape = SCNPhysicsShape(geometry: floorPlane, options: nil)
             let floorBody = SCNPhysicsBody(type: .static, shape: floorShape)
-            floorBody.categoryBitMask = PhysicsCategory.surface
+            floorBody.categoryBitMask = PhysicsCategory.course
             floorBody.collisionBitMask = PhysicsCategory.ball
-            floorBody.friction = 0.5
-            floorBody.restitution = 0.0
+            floorBody.friction = 0.15
+            floorBody.restitution = 0.05
             floorNode.physicsBody = floorBody
 
             pieceNode.addChildNode(floorNode)
-        }
-
-        // Add wall physics to all child geometry (edges, walls, ramps)
-        pieceNode.enumerateChildNodes { child, _ in
-            guard let geometry = child.geometry else { return }
-            guard child.name != "floor_plane" else { return }
-
-            let shape = SCNPhysicsShape(
-                geometry: geometry,
-                options: [
-                    .type: SCNPhysicsShape.ShapeType.concavePolyhedron,
-                    .scale: child.scale
-                ]
-            )
-            let body = SCNPhysicsBody(type: .static, shape: shape)
-            body.categoryBitMask = PhysicsCategory.wall
-            body.collisionBitMask = PhysicsCategory.ball
-            body.restitution = 0.5
-            body.friction = 0.3
-            child.physicsBody = body
         }
     }
 
@@ -97,7 +101,7 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
         triggerGeometry.firstMaterial?.diffuse.contents = UIColor.clear
         let triggerNode = SCNNode(geometry: triggerGeometry)
         triggerNode.name = "hole_trigger"
-        triggerNode.position = SCNVector3(position.x, 0.03, position.z)
+        triggerNode.position = SCNVector3(position.x, 0.06, position.z)
 
         let body = SCNPhysicsBody(type: .static, shape: nil)
         body.categoryBitMask = PhysicsCategory.hole

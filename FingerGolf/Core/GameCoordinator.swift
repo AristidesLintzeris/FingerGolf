@@ -14,7 +14,6 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
     let turnManager = TurnManager()
     let scoringManager = ScoringManager()
     let ballController = BallController(color: "red")
-    let clubController = ClubController(color: "red")
 
     private(set) var physicsManager: PhysicsManager!
     private(set) var holeDetector: HoleDetector!
@@ -22,13 +21,13 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
     lazy var cloudKitManager = CloudKitManager.shared
     let audioManager = AudioManager.shared
 
-    // MARK: - State (Unity: GameManager.gameStatus)
+    // MARK: - State
 
     @Published var gameState: GameState = .mainMenu
     @Published var showRestartFade: Bool = false
-    @Published var powerBarFill: Float = 0.0  // Unity: UIManager.PowerBar.fillAmount
+    @Published var powerBarFill: Float = 0.0
 
-    private var gameLoopTimer: Timer?  // Single timer for both camera follow and ball state checking
+    private var gameLoopTimer: Timer?
 
     // MARK: - Init
 
@@ -45,7 +44,7 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         courseManager.currentCourse?.par ?? 0
     }
 
-    // MARK: - Game Flow (Unity: LevelManager.SpawnLevel)
+    // MARK: - Game Flow
 
     func startCourse(at index: Int? = nil) {
         if let index = index {
@@ -60,12 +59,12 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         // Build and display course
         guard let courseNode = courseManager.buildCurrentCourse() else { return }
 
-        // Setup physics for each piece
+        // Setup physics for each piece - uses the actual mesh as collision surface
         for child in courseNode.childNodes {
             physicsManager.setupCoursePiecePhysics(for: child)
         }
 
-        // Add hole trigger (Unity: "Hole" trigger collider)
+        // Add hole trigger
         let holeTrigger = physicsManager.setupHoleTrigger(at: definition.holePosition.scenePosition)
         courseNode.addChildNode(holeTrigger)
         holeDetector.setHolePosition(definition.holePosition.scenePosition)
@@ -78,34 +77,34 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         // Set course in scene
         sceneManager.setCourseRoot(courseNode)
 
-        // Place ball at start (Unity: Instantiate ballPrefab at ballSpawnPos)
+        // Place ball at start
+        ballController.ballNode.removeFromParentNode()
+        ballController.areaAffectorNode.removeFromParentNode()
+        ballController.cancelAim()
+
         physicsManager.setupBallPhysics(for: ballController.ballNode)
         ballController.placeBall(at: definition.ballStart.scenePosition)
         sceneManager.scene.rootNode.addChildNode(ballController.ballNode)
         sceneManager.scene.rootNode.addChildNode(ballController.areaAffectorNode)
 
-        // Switch to perspective camera and start following ball
-        // Unity: CameraFollow.SetTarget(ball)
+        // Camera setup
         sceneManager.enablePerspectiveCamera()
         sceneManager.setFollowTarget(ballController.ballNode)
         sceneManager.snapCameraToBall()
 
-        // Add aim line to scene
-        clubController.addToScene(sceneManager.scene.rootNode)
+        // Add trajectory dots to scene
+        ballController.addToScene(sceneManager.scene.rootNode)
 
-        // Reset turn manager with this level's shot count
-        // Unity: shotCount = levelDatas[levelIndex].shotCount
+        // Reset turn manager
         turnManager.resetForNewHole(maxShots: definition.shotCount)
 
-        // Set game status to Playing (Unity: GameManager.gameStatus = GameStatus.Playing)
         gameState = .playing
         powerBarFill = 0
 
-        // Start game loop (combines Unity's Update + LateUpdate)
         startGameLoop()
     }
 
-    // MARK: - Level Complete (Unity: LevelManager.LevelComplete)
+    // MARK: - Level Complete
 
     func levelComplete() {
         guard gameState == .playing else { return }
@@ -128,7 +127,7 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         }
     }
 
-    // MARK: - Level Failed (Unity: LevelManager.LevelFailed)
+    // MARK: - Level Failed
 
     func levelFailed() {
         guard gameState == .playing else { return }
@@ -139,12 +138,9 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
 
     // MARK: - Shot Handling
 
-    /// Called when ball stops after a shot.
-    /// Unity: BallControl.Update detects velocity==zero -> LevelManager.ShotTaken()
     private func onBallStopped() {
         let shotsRemain = turnManager.shotTaken()
 
-        // Check if ball is close to hole
         if holeDetector.shouldCaptureBall(ballController.ballNode) {
             let holePos = courseManager.currentCourse?.holePosition.scenePosition ?? SCNVector3Zero
             ballController.captureInHole(holePosition: holePos)
@@ -154,55 +150,54 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
             return
         }
 
-        // Unity: if shotCount <= 0 -> LevelFailed()
         if !shotsRemain {
             levelFailed()
         }
     }
 
-    // MARK: - Input: Aiming (Unity: InputManager routing to BallControl)
+    // MARK: - Input: Aiming
 
-    /// Unity: BallControl.MouseDownMethod - touch started near ball
     func aimBegan(worldPoint: SCNVector3) {
         guard gameState == .playing, ballController.ballIsStatic else { return }
-        clubController.mouseDown(ballPosition: ballController.ballNode.position, worldPoint: worldPoint)
+        ballController.aimBegan(worldPoint: worldPoint)
     }
 
-    /// Unity: BallControl.MouseNormalMethod - touch moved during aim
     func aimMoved(worldPoint: SCNVector3) {
         guard gameState == .playing, ballController.ballIsStatic else { return }
-        clubController.mouseNormal(ballPosition: ballController.ballNode.position, worldPoint: worldPoint)
-        // Unity: UIManager.PowerBar.fillAmount = force / MaxForce
-        powerBarFill = clubController.normalizedPower
+        ballController.aimMoved(worldPoint: worldPoint)
+        powerBarFill = ballController.normalizedPower
     }
 
-    /// Unity: BallControl.MouseUpMethod - touch ended, fire shot
     func aimEnded() {
         guard gameState == .playing, ballController.ballIsStatic else { return }
 
-        if let impulse = clubController.mouseUp() {
+        if let impulse = ballController.aimEnded() {
             ballController.queueShot(impulse: impulse)
             turnManager.ballShot()
-            audioManager.hitBall(power: CGFloat(clubController.normalizedPower))
+            audioManager.hitBall(power: CGFloat(ballController.normalizedPower))
         }
 
         powerBarFill = 0
     }
 
-    /// Cancel aim without shooting
     func aimCancelled() {
-        clubController.reset()
+        ballController.cancelAim()
         powerBarFill = 0
     }
 
-    // MARK: - Input: Camera Rotation (3rd person orbit)
+    // MARK: - Input: Camera Rotation
 
     func rotateCamera(deltaX: Float, deltaY: Float) {
         guard gameState == .playing else { return }
         sceneManager.orbitCamera(deltaX: deltaX, deltaY: deltaY)
     }
 
-    // MARK: - Game Loop (combines Unity Update + LateUpdate)
+    func zoomCamera(scale: Float) {
+        guard gameState == .playing else { return }
+        sceneManager.zoomCamera(by: scale)
+    }
+
+    // MARK: - Game Loop
 
     private func startGameLoop() {
         gameLoopTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
@@ -216,22 +211,17 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
     }
 
     private func gameLoopTick() {
-        // Unity LateUpdate: camera follow
         sceneManager.updateCameraFollow()
 
-        // Unity Update: ball state checking
         guard gameState == .playing else { return }
 
-        // Check for fall-off (Unity: OnTriggerEnter "Destroyer")
         if ballController.hasFallenOff {
             handleBallFellOff()
             return
         }
 
-        // Check if ball has stopped (Unity: rgBody.velocity == Vector3.zero)
         let justStopped = ballController.checkState()
         if justStopped && turnManager.ballIsMoving {
-            // Ball was moving and just became static
             onBallStopped()
         }
     }
@@ -265,7 +255,7 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         sceneManager.clearCourse()
         ballController.ballNode.removeFromParentNode()
         ballController.areaAffectorNode.removeFromParentNode()
-        clubController.reset()
+        ballController.cancelAim()
         courseManager.resetToFirstCourse()
         scoringManager.reset()
         gameState = .mainMenu
@@ -293,11 +283,11 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         guard let definition = courseManager.currentCourse else { return }
         stopGameLoop()
         sceneManager.scene.isPaused = false
-        clubController.reset()
+        ballController.cancelAim()
         powerBarFill = 0
 
-        ballController.placeBall(at: definition.ballStart.scenePosition)
         physicsManager.setupBallPhysics(for: ballController.ballNode)
+        ballController.placeBall(at: definition.ballStart.scenePosition)
         turnManager.resetForNewHole(maxShots: definition.shotCount)
 
         sceneManager.setFollowTarget(ballController.ballNode)
@@ -307,14 +297,11 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         startGameLoop()
     }
 
-    /// Retry after failure (Unity: NextRetryBtn reloads scene)
     func retryLevel() {
         restartCurrentHole()
     }
 
-    func applySettings() {
-        // Settings are applied through direct property access where needed
-    }
+    func applySettings() {}
 
     // MARK: - PhysicsManagerDelegate
 
@@ -325,7 +312,6 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
             let holePos = courseManager.currentCourse?.holePosition.scenePosition ?? SCNVector3Zero
             ballController.captureInHole(holePosition: holePos)
 
-            // Record the shot that landed in the hole
             if turnManager.ballIsMoving {
                 turnManager.shotTaken()
             }
@@ -351,13 +337,13 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         }
     }
 
-    // MARK: - Editor (unchanged)
+    // MARK: - Editor
 
     func startEditor(course: CourseDefinition? = nil) {
         sceneManager.clearCourse()
         ballController.ballNode.removeFromParentNode()
         ballController.areaAffectorNode.removeFromParentNode()
-        clubController.reset()
+        ballController.cancelAim()
 
         sceneManager.enableOrthographicCamera()
 
