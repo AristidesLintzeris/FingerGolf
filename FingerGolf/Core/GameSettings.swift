@@ -36,8 +36,8 @@ class GameSettings: ObservableObject {
 
     // Physics tuning (not exposed in UI)
     var ballAtRestThreshold: Float = 0.01
-    var holeCaptureVelocityThreshold: Float = 0.5
-    var holeCaptureDistanceThreshold: Float = 0.05
+    var holeCaptureVelocityThreshold: Float = 1.5
+    var holeCaptureDistanceThreshold: Float = 0.08
 
     // Base swing power (constant, multiplied by powerPreset)
     let basePower: CGFloat = 0.6

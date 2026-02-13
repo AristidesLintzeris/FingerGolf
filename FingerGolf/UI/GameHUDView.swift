@@ -5,6 +5,7 @@ struct GameHUDView: View {
     @ObservedObject var turnManager: TurnManager
     @ObservedObject var scoringManager: ScoringManager
     let currentPar: Int
+    let powerBarFill: Float  // Unity: UIManager.PowerBar.fillAmount (0-1)
 
     var onNextHole: () -> Void
     var onReturnToMenu: () -> Void
@@ -13,9 +14,15 @@ struct GameHUDView: View {
 
     var body: some View {
         ZStack {
-            // Layer 1: Score display + instructions (non-interactive, at bottom)
-            VStack {
+            // Layer 1: Power bar + Score display (non-interactive, at bottom)
+            VStack(spacing: 8) {
                 Spacer()
+
+                // Unity: UIManager.PowerBar
+                if powerBarFill > 0 {
+                    powerBar
+                        .padding(.horizontal, 40)
+                }
 
                 stateInstruction
 
@@ -25,6 +32,18 @@ struct GameHUDView: View {
                             .bodyStyle(size: 18)
                         Text("PAR \(currentPar)")
                             .lightStyle(size: 13)
+                    }
+
+                    Spacer()
+
+                    // Unity: UIManager.shotText
+                    VStack(alignment: .center, spacing: 2) {
+                        Text("\(turnManager.shotCount)")
+                            .font(.custom("Futura-Bold", size: 28))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.5), radius: 1, x: 0.5, y: 1)
+                        Text("SHOTS LEFT")
+                            .lightStyle(size: 11)
                     }
 
                     Spacer()
@@ -78,27 +97,45 @@ struct GameHUDView: View {
                 Spacer()
             }
             .ignoresSafeArea(edges: .top)
-
-            // Layer 3: Hole complete overlay
-            if turnManager.state == .holeComplete {
-                holeCompleteOverlay
-            }
         }
     }
 
+    // MARK: - Power Bar (Unity: UIManager.PowerBar)
+
+    private var powerBar: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                // Background
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.black.opacity(0.4))
+
+                // Fill
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(powerBarColor)
+                    .frame(width: geo.size.width * CGFloat(powerBarFill))
+            }
+        }
+        .frame(height: 12)
+    }
+
+    private var powerBarColor: Color {
+        if powerBarFill < 0.33 {
+            return .green
+        } else if powerBarFill < 0.66 {
+            return .yellow
+        } else {
+            return .red
+        }
+    }
+
+    // MARK: - State Instruction
+
     @ViewBuilder
     private var stateInstruction: some View {
-        switch turnManager.state {
-        case .placingClub:
-            instructionBadge("Tap the ball and drag to aim")
-        case .swinging:
-            EmptyView()
-        case .ballMoving:
+        if turnManager.ballIsMoving {
             instructionBadge("Ball in play...")
-        case .holeComplete:
-            EmptyView()
-        default:
-            EmptyView()
+        } else if turnManager.shotCount > 0 {
+            instructionBadge("Drag near ball to aim")
         }
     }
 
@@ -109,63 +146,5 @@ struct GameHUDView: View {
             .padding(.vertical, 10)
             .background(.ultraThinMaterial)
             .clipShape(Capsule())
-    }
-
-    private var holeCompleteOverlay: some View {
-        VStack(spacing: 16) {
-            Text("HOLE COMPLETE!")
-                .headingStyle(size: 28)
-
-            let diff = turnManager.strokeCount - currentPar
-            let label = scoreLabel(for: diff)
-
-            Text(label.uppercased())
-                .headingStyle(size: 22)
-                .foregroundStyle(diff <= 0 ? .green : .orange)
-
-            HStack(spacing: 4) {
-                ForEach(0..<min(turnManager.strokeCount, 5), id: \.self) { _ in
-                    Image("GameUI/star")
-                        .resizable()
-                        .frame(width: 20, height: 20)
-                }
-            }
-
-            Text("\(turnManager.strokeCount) STROKE\(turnManager.strokeCount == 1 ? "" : "S")")
-                .lightStyle(size: 16)
-
-            HStack(spacing: 16) {
-                Button("MENU") {
-                    onReturnToMenu()
-                }
-                .bodyStyle(size: 15)
-                .buttonStyle(.bordered)
-
-                Button("NEXT HOLE") {
-                    onNextHole()
-                }
-                .bodyStyle(size: 15)
-                .buttonStyle(.borderedProminent)
-                .tint(.green)
-            }
-        }
-        .padding(30)
-        .background(.ultraThickMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-    }
-
-    private func scoreLabel(for relativeToPar: Int) -> String {
-        if turnManager.strokeCount == 1 {
-            return "Hole in One!"
-        }
-        switch relativeToPar {
-        case ..<(-2): return "Albatross!"
-        case -2: return "Eagle!"
-        case -1: return "Birdie!"
-        case 0: return "Par"
-        case 1: return "Bogey"
-        case 2: return "Double Bogey"
-        default: return "+\(relativeToPar)"
-        }
     }
 }

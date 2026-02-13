@@ -1,36 +1,58 @@
 import SceneKit
 
+/// Ball controller matching Unity BallControl.cs behavior:
+/// - Area affector disc (visible when ball is shootable)
+/// - ballIsStatic detection via velocity threshold
+/// - canShoot flag gated in physics update
+/// - Fall detection when ball leaves course
 class BallController {
 
-    enum BallState {
-        case atRest
-        case moving
-        case inHole
-    }
+    // MARK: - State
+
+    private(set) var ballIsStatic: Bool = true
+    private(set) var pendingShot: SCNVector3?
+
+    // MARK: - Nodes
 
     let ballNode: SCNNode
-    private(set) var state: BallState = .atRest
-    private var lastRestPosition: SCNVector3 = SCNVector3Zero
+    let areaAffectorNode: SCNNode  // Flat disc showing ball is ready to hit
+
+    // MARK: - Init
 
     init(color: String = "red") {
         let modelName = "ball-\(color)"
         if let loaded = AssetCatalog.shared.loadPiece(named: modelName) {
             ballNode = loaded
         } else {
-            // Fallback: create a simple sphere
             let sphere = SCNSphere(radius: 0.035)
-            sphere.firstMaterial?.diffuse.contents = UIColor.red
+            let mat = SCNMaterial()
+            mat.diffuse.contents = UIColor.white
+            mat.lightingModel = .physicallyBased
+            mat.roughness.contents = NSNumber(value: 0.3)
+            sphere.firstMaterial = mat
             ballNode = SCNNode(geometry: sphere)
         }
         ballNode.name = "golf_ball"
+
+        // Area affector: flat transparent disc around ball
+        let disc = SCNCylinder(radius: 0.25, height: 0.002)
+        let discMat = SCNMaterial()
+        discMat.diffuse.contents = UIColor.white.withAlphaComponent(0.25)
+        discMat.lightingModel = .constant
+        discMat.writesToDepthBuffer = false
+        discMat.isDoubleSided = true
+        disc.firstMaterial = discMat
+        areaAffectorNode = SCNNode(geometry: disc)
+        areaAffectorNode.name = "area_affector"
+        areaAffectorNode.renderingOrder = 90
+        areaAffectorNode.isHidden = false
     }
 
     // MARK: - Placement
 
     func placeBall(at position: SCNVector3) {
-        // Place ball at floor level + radius so it sits on top of the floor plane at Y=0
-        // Ball radius is 0.035, so center should be at Y=0.035
-        ballNode.position = SCNVector3(position.x, 0.035, position.z)
+        // Spawn above surface so gravity settles the ball onto the floor
+        ballNode.position = SCNVector3(position.x, 0.15, position.z)
         ballNode.physicsBody?.velocity = SCNVector3Zero
         ballNode.physicsBody?.angularVelocity = SCNVector4Zero
         ballNode.isHidden = false
@@ -38,56 +60,72 @@ class BallController {
         ballNode.scale = SCNVector3(1, 1, 1)
         ballNode.physicsBody?.isAffectedByGravity = true
         ballNode.physicsBody?.type = .dynamic
-        lastRestPosition = ballNode.position
-        state = .atRest
+        ballIsStatic = true
+        pendingShot = nil
+
+        areaAffectorNode.position = SCNVector3(position.x, 0.005, position.z)
+        areaAffectorNode.isHidden = false
     }
 
-    // MARK: - Hit
+    // MARK: - Shoot
 
-    func applyImpulse(_ impulse: SCNVector3) {
-        guard state == .atRest else { return }
-        ballNode.physicsBody?.applyForce(impulse, asImpulse: true)
-        state = .moving
+    /// Queue a shot impulse. Applied on next checkState call (like Unity FixedUpdate).
+    func queueShot(impulse: SCNVector3) {
+        guard ballIsStatic else { return }
+        pendingShot = impulse
     }
 
-    // MARK: - State Checking
-
-    var isAtRest: Bool {
-        guard let body = ballNode.physicsBody else { return true }
-        let v = body.velocity
-        let speed = sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
-        let av = body.angularVelocity
-        let angularSpeed = sqrt(av.x * av.x + av.y * av.y + av.z * av.z)
-        return speed < 0.01 && angularSpeed < 0.05
-    }
-
-    /// Returns true if ball has fallen off the course.
-    var hasFallenOff: Bool {
-        ballNode.position.y < -2.0
-    }
-
-    func updateState() {
-        switch state {
-        case .moving:
-            if isAtRest {
-                state = .atRest
-                lastRestPosition = ballNode.position
-            }
-        default:
-            break
+    /// Called each frame. If a shot is queued, apply it. Then check if ball has stopped.
+    /// Returns true if ball just became static (shot completed).
+    @discardableResult
+    func checkState() -> Bool {
+        // Apply queued shot
+        if let impulse = pendingShot {
+            pendingShot = nil
+            ballIsStatic = false
+            areaAffectorNode.isHidden = true
+            ballNode.physicsBody?.applyForce(impulse, asImpulse: true)
+            return false
         }
+
+        // Check if ball has come to rest
+        if !ballIsStatic {
+            guard let body = ballNode.physicsBody else { return false }
+            let v = body.velocity
+            let speed = sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+            let av = body.angularVelocity
+            let angularSpeed = sqrt(av.x * av.x + av.y * av.y + av.z * av.z)
+
+            if speed < 0.02 && angularSpeed < 0.06 {
+                ballIsStatic = true
+                body.velocity = SCNVector3Zero
+                body.angularVelocity = SCNVector4Zero
+                areaAffectorNode.isHidden = false
+                areaAffectorNode.position = SCNVector3(
+                    ballNode.position.x, 0.005, ballNode.position.z
+                )
+                return true
+            }
+        }
+        return false
     }
 
-    // MARK: - Hole
+    // MARK: - Fall Detection
+
+    var hasFallenOff: Bool {
+        ballNode.position.y < -1.0
+    }
+
+    // MARK: - Hole Capture
 
     func captureInHole(holePosition: SCNVector3) {
-        state = .inHole
+        ballIsStatic = true
+        areaAffectorNode.isHidden = true
         ballNode.physicsBody?.velocity = SCNVector3Zero
         ballNode.physicsBody?.angularVelocity = SCNVector4Zero
         ballNode.physicsBody?.isAffectedByGravity = false
         ballNode.physicsBody?.type = .kinematic
 
-        // Animate ball into hole
         let moveToHole = SCNAction.move(
             to: SCNVector3(holePosition.x, 0.02, holePosition.z),
             duration: 0.2
@@ -96,27 +134,10 @@ class BallController {
         let drop = SCNAction.moveBy(x: 0, y: -0.05, z: 0, duration: 0.2)
         let fadeOut = SCNAction.fadeOut(duration: 0.15)
 
-        let captureSequence = SCNAction.sequence([
+        ballNode.runAction(SCNAction.sequence([
             moveToHole,
             SCNAction.group([shrink, drop]),
             fadeOut
-        ])
-
-        ballNode.runAction(captureSequence)
-    }
-
-    // MARK: - Reset
-
-    func resetToLastPosition() {
-        ballNode.removeAllActions()
-        ballNode.physicsBody?.velocity = SCNVector3Zero
-        ballNode.physicsBody?.angularVelocity = SCNVector4Zero
-        ballNode.position = lastRestPosition
-        ballNode.isHidden = false
-        ballNode.opacity = 1.0
-        ballNode.scale = SCNVector3(1, 1, 1)
-        ballNode.physicsBody?.isAffectedByGravity = true
-        ballNode.physicsBody?.type = .dynamic
-        state = .atRest
+        ]))
     }
 }

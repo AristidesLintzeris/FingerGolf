@@ -3,14 +3,16 @@ import SceneKit
 struct CourseDefinition: Codable {
     let name: String
     let par: Int
+    let shotCount: Int      // Unity: LevelData.shotCount - max shots allowed
     let pieces: [PiecePlacement]
     let ballStart: GridPosition
     let holePosition: GridPosition
     let holeModel: String?
 
-    init(name: String, par: Int, pieces: [PiecePlacement], ballStart: GridPosition, holePosition: GridPosition, holeModel: String? = "hole-round") {
+    init(name: String, par: Int, shotCount: Int? = nil, pieces: [PiecePlacement], ballStart: GridPosition, holePosition: GridPosition, holeModel: String? = "hole-round") {
         self.name = name
         self.par = par
+        self.shotCount = shotCount ?? (par + 3)  // Default: par + 3 shots
         self.pieces = pieces
         self.ballStart = ballStart
         self.holePosition = holePosition

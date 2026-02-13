@@ -13,26 +13,13 @@ struct ContentView: View {
             GameSceneView(coordinator: coordinator, scnViewBinding: $scnView)
                 .ignoresSafeArea()
 
-            // Layer 1.5: Trajectory preview overlay (UI-based, above 3D scene)
-            if coordinator.gameState == .playing,
-               coordinator.turnManager.state == .placingClub,
-               let direction = coordinator.clubController.aimDirection {
-                TrajectoryOverlay(
-                    scnView: scnView,
-                    ballPosition: coordinator.ballController.ballNode.position,
-                    direction: direction,
-                    power: coordinator.trajectoryPower,
-                    isVisible: true
-                )
-                .ignoresSafeArea()
-            }
-
             // Layer 2: HUD (visible during play + pause)
             if coordinator.gameState == .playing || coordinator.gameState == .paused {
                 GameHUDView(
                     turnManager: coordinator.turnManager,
                     scoringManager: coordinator.scoringManager,
                     currentPar: coordinator.currentPar,
+                    powerBarFill: coordinator.powerBarFill,
                     onNextHole: { coordinator.advanceToNextHole() },
                     onReturnToMenu: { coordinator.returnToMenu() },
                     onPause: { coordinator.pauseGame() },
@@ -44,10 +31,10 @@ struct ContentView: View {
             // Layer 3: Modal overlays based on game state
             modalOverlay
 
-            // Layer 3.5: Restart fade effect
+            // Layer 3.5: Restart fade effect (ball fell off)
             if coordinator.showRestartFade {
                 RestartFadeEffect(
-                    centerPosition: coordinator.holeScreenPosition,
+                    centerPosition: ballScreenPosition,
                     onComplete: {}
                 )
                 .ignoresSafeArea()
@@ -66,6 +53,13 @@ struct ContentView: View {
                 .background(Color(red: 0.1, green: 0.15, blue: 0.1, opacity: 0.95).ignoresSafeArea())
             }
         }
+    }
+
+    /// Project ball position to screen for fade effect center
+    private var ballScreenPosition: CGPoint {
+        guard let scnView else { return CGPoint(x: UIScreen.main.bounds.midX, y: UIScreen.main.bounds.midY) }
+        let projected = scnView.projectPoint(coordinator.ballController.ballNode.position)
+        return CGPoint(x: CGFloat(projected.x), y: CGFloat(projected.y))
     }
 
     // MARK: - Modal Overlays
@@ -105,6 +99,13 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.black.opacity(0.5).ignoresSafeArea())
 
+        case .failed:
+            // Unity: GameManager.GameStatus.Failed -> LevelManager shows retry panel
+            failedOverlay
+
+        case .holeComplete:
+            holeCompleteOverlay
+
         case .courseComplete:
             courseCompleteOverlay
 
@@ -134,6 +135,75 @@ struct ContentView: View {
             EmptyView()
         }
     }
+
+    // MARK: - Failed Overlay (Unity: NextRetryBtn panel)
+
+    private var failedOverlay: some View {
+        VStack(spacing: 16) {
+            Text("OUT OF SHOTS!")
+                .headingStyle(size: 28)
+
+            Text("You used all \(coordinator.turnManager.maxShots) shots")
+                .lightStyle(size: 16)
+
+            HStack(spacing: 16) {
+                Button("MENU") {
+                    coordinator.returnToMenu()
+                }
+                .bodyStyle(size: 15)
+                .buttonStyle(.bordered)
+
+                Button("RETRY") {
+                    coordinator.retryLevel()
+                }
+                .bodyStyle(size: 15)
+                .buttonStyle(.borderedProminent)
+                .tint(.orange)
+            }
+        }
+        .padding(30)
+        .background(.ultraThickMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    // MARK: - Hole Complete Overlay
+
+    private var holeCompleteOverlay: some View {
+        VStack(spacing: 16) {
+            Text("HOLE COMPLETE!")
+                .headingStyle(size: 28)
+
+            let diff = coordinator.turnManager.strokeCount - coordinator.currentPar
+            let label = scoreLabel(for: diff, strokes: coordinator.turnManager.strokeCount)
+
+            Text(label.uppercased())
+                .headingStyle(size: 22)
+                .foregroundStyle(diff <= 0 ? .green : .orange)
+
+            Text("\(coordinator.turnManager.strokeCount) STROKE\(coordinator.turnManager.strokeCount == 1 ? "" : "S")")
+                .lightStyle(size: 16)
+
+            HStack(spacing: 16) {
+                Button("MENU") {
+                    coordinator.returnToMenu()
+                }
+                .bodyStyle(size: 15)
+                .buttonStyle(.bordered)
+
+                Button("NEXT HOLE") {
+                    coordinator.advanceToNextHole()
+                }
+                .bodyStyle(size: 15)
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
+            }
+        }
+        .padding(30)
+        .background(.ultraThickMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    // MARK: - Course Complete Overlay
 
     @ViewBuilder
     private var courseCompleteOverlay: some View {
@@ -167,6 +237,23 @@ struct ContentView: View {
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.black.opacity(0.4).ignoresSafeArea())
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func scoreLabel(for relativeToPar: Int, strokes: Int) -> String {
+        if strokes == 1 {
+            return "Hole in One!"
+        }
+        switch relativeToPar {
+        case ..<(-2): return "Albatross!"
+        case -2: return "Eagle!"
+        case -1: return "Birdie!"
+        case 0: return "Par"
+        case 1: return "Bogey"
+        case 2: return "Double Bogey"
+        default: return "+\(relativeToPar)"
         }
     }
 }
