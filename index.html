@@ -1,313 +1,468 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FingerGolf Level Editor</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    background: #1a1a2e;
-    color: #e0e0e0;
-    display: flex;
-    height: 100vh;
-    overflow: hidden;
-    user-select: none;
-  }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FingerGolf Level Editor</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #000;
+      color: #fff;
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-  /* Sidebar */
-  #sidebar {
-    width: 280px;
-    background: #16213e;
-    border-right: 1px solid #0f3460;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-  }
-  #sidebar h2 {
-    padding: 16px;
-    font-size: 18px;
-    border-bottom: 1px solid #0f3460;
-    color: #4ecca3;
-  }
+    button {
+      -webkit-appearance: none;
+      appearance: none;
+    }
 
-  .section { padding: 12px 16px; border-bottom: 1px solid #0f3460; }
-  .section h3 { font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    /* Screen Management */
+    .screen {
+      position: fixed;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      z-index: 10;
+      background: #000;
+    }
 
-  label { display: block; font-size: 13px; margin-bottom: 4px; color: #aaa; }
-  input[type="text"], input[type="number"] {
-    width: 100%;
-    padding: 6px 10px;
-    background: #1a1a2e;
-    border: 1px solid #0f3460;
-    border-radius: 6px;
-    color: #e0e0e0;
-    font-size: 14px;
-    margin-bottom: 8px;
-  }
-  input:focus { outline: none; border-color: #4ecca3; }
+    .screen.visible {
+      display: flex;
+    }
 
-  /* Piece palette */
-  #palette {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-  }
-  .piece-category { margin-bottom: 12px; }
-  .piece-category h4 {
-    font-size: 11px;
-    color: #666;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 4px;
-    padding: 0 4px;
-  }
-  .piece-btn {
-    display: inline-block;
-    padding: 4px 8px;
-    margin: 2px;
-    background: #1a1a2e;
-    border: 1px solid #0f3460;
-    border-radius: 4px;
-    color: #ccc;
-    font-size: 11px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .piece-btn:hover { background: #0f3460; color: #fff; }
-  .piece-btn.selected { background: #4ecca3; color: #1a1a2e; border-color: #4ecca3; font-weight: 600; }
+    /* Home Screen */
+    #screen-home {
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
 
-  .special-btn {
-    display: inline-block;
-    padding: 5px 10px;
-    margin: 2px;
-    border: 1px solid;
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
-    font-weight: 600;
-  }
-  .ball-btn { background: #2d5016; border-color: #4ecca3; color: #4ecca3; }
-  .ball-btn.selected { background: #4ecca3; color: #1a1a2e; }
-  .hole-btn { background: #501616; border-color: #e74c3c; color: #e74c3c; }
-  .hole-btn.selected { background: #e74c3c; color: #fff; }
-  .eraser-btn { background: #3d2c08; border-color: #f39c12; color: #f39c12; }
-  .eraser-btn.selected { background: #f39c12; color: #1a1a2e; }
+    .logo {
+      font-size: 48px;
+      font-weight: 800;
+      margin-bottom: 60px;
+      color: #4ecca3;
+      text-shadow: 0 4px 20px rgba(78, 204, 163, 0.4);
+      letter-spacing: -1px;
+    }
 
-  /* Main area */
-  #main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
+    .menu-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 80%;
+      max-width: 320px;
+    }
 
-  /* Toolbar */
-  #toolbar {
-    display: flex;
-    align-items: center;
-    padding: 8px 16px;
-    background: #16213e;
-    border-bottom: 1px solid #0f3460;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .toolbar-group {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .toolbar-group span { font-size: 12px; color: #888; margin-right: 4px; }
-  .tb-btn {
-    padding: 6px 12px;
-    background: #1a1a2e;
-    border: 1px solid #0f3460;
-    border-radius: 4px;
-    color: #ccc;
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .tb-btn:hover { background: #0f3460; color: #fff; }
-  .tb-btn.active { background: #4ecca3; color: #1a1a2e; border-color: #4ecca3; }
-  .tb-btn.accent { background: #0f3460; border-color: #4ecca3; color: #4ecca3; }
-  .tb-btn.accent:hover { background: #4ecca3; color: #1a1a2e; }
-  .tb-btn.danger { border-color: #e74c3c; color: #e74c3c; }
-  .tb-btn.danger:hover { background: #e74c3c; color: #fff; }
+    .big-btn {
+      padding: 20px;
+      background: #4ecca3;
+      color: #1a1a2e;
+      border: none;
+      border-radius: 16px;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+      transition: transform 0.1s, background 0.2s;
+      text-align: center;
+    }
 
-  .toolbar-sep { width: 1px; height: 24px; background: #0f3460; }
+    .big-btn:active {
+      transform: scale(0.96);
+      background: #45b992;
+    }
 
-  #rotation-label {
-    font-size: 12px;
-    color: #4ecca3;
-    font-weight: 600;
-    min-width: 30px;
-    text-align: center;
-  }
+    .big-btn.secondary {
+      background: #16213e;
+      color: #4ecca3;
+      border: 2px solid #4ecca3;
+    }
 
-  /* Viewport */
-  #viewport {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-  }
-  #viewport canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
+    /* Level Select */
+    #screen-level-select {
+      background: #1a1a2e;
+      padding: 24px;
+    }
 
-  /* Coords display */
-  #coords {
-    position: absolute;
-    bottom: 12px;
-    left: 12px;
-    font-size: 12px;
-    color: #aaa;
-    pointer-events: none;
-    background: rgba(0,0,0,0.5);
-    padding: 4px 8px;
-    border-radius: 4px;
-  }
+    .screen-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 30px;
+    }
 
-  /* Loading indicator */
-  #loading {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    font-size: 12px;
-    color: #4ecca3;
-    background: rgba(0,0,0,0.7);
-    padding: 4px 10px;
-    border-radius: 4px;
-    display: none;
-  }
-  #loading.visible { display: block; }
+    .back-btn {
+      padding: 12px 20px;
+      background: transparent;
+      border: 1px solid #4ecca3;
+      color: #4ecca3;
+      border-radius: 12px;
+      font-weight: 600;
+    }
 
-  /* Export modal */
-  #export-modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.7);
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
-  }
-  #export-modal.visible { display: flex; }
-  #export-content {
-    background: #16213e;
-    border: 1px solid #0f3460;
-    border-radius: 12px;
-    padding: 24px;
-    width: 90%;
-    max-width: 700px;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-  }
-  #export-content h2 { margin-bottom: 12px; color: #4ecca3; }
-  #export-content textarea {
-    flex: 1;
-    min-height: 300px;
-    background: #1a1a2e;
-    color: #4ecca3;
-    border: 1px solid #0f3460;
-    border-radius: 8px;
-    padding: 12px;
-    font-family: 'SF Mono', 'Menlo', monospace;
-    font-size: 12px;
-    resize: none;
-  }
-  #export-content .modal-btns {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
-    justify-content: flex-end;
-  }
-</style>
+    .screen-title {
+      flex: 1;
+      text-align: center;
+      font-size: 24px;
+      font-weight: 700;
+      margin-right: 60px;
+      /* offset back btn */
+    }
+
+    .level-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 16px;
+      overflow-y: auto;
+      padding-bottom: 40px;
+    }
+
+    .level-card {
+      background: #16213e;
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      border: 1px solid #0f3460;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .level-card h4 {
+      font-size: 18px;
+    }
+
+    .level-card span {
+      font-size: 14px;
+      color: #888;
+    }
+
+    /* Builder Layout */
+    #screen-builder {
+      flex-direction: row;
+    }
+
+    #sidebar {
+      width: 200px;
+      /* Slimmer for mobile horizontal */
+      background: #16213e;
+      border-right: 1px solid #0f3460;
+      display: flex;
+      flex-direction: column;
+      z-index: 20;
+    }
+
+    @media (max-width: 768px) {
+      #sidebar {
+        width: 140px;
+      }
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      background: #0f3460;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Palette with Previews */
+    .palette-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+
+    .category-group {
+      margin-bottom: 16px;
+    }
+
+    .category-group h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #4ecca3;
+      margin-bottom: 8px;
+      border-bottom: 1px solid rgba(78, 204, 163, 0.2);
+      padding-bottom: 4px;
+    }
+
+    .piece-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .piece-item {
+      background: #1a1a2e;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      padding: 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .piece-item.selected {
+      border-color: #4ecca3;
+      background: rgba(78, 204, 163, 0.1);
+    }
+
+    .piece-preview {
+      width: 40px;
+      height: 40px;
+      background: #000;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .piece-preview canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    .piece-name {
+      font-size: 9px;
+      text-align: center;
+      color: #aaa;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 100%;
+    }
+
+    /* Floating UI Buttons */
+    .ui-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .top-controls {
+      display: flex;
+      justify-content: space-between;
+      pointer-events: auto;
+    }
+
+    .bottom-controls {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      pointer-events: auto;
+    }
+
+    .circle-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 28px;
+      background: rgba(22, 33, 62, 0.9);
+      border: 2px solid #4ecca3;
+      color: #4ecca3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+    }
+
+    .circle-btn:active {
+      transform: scale(0.9);
+      background: #4ecca3;
+      color: #16213e;
+    }
+
+    .circle-btn.rotate {
+      width: 72px;
+      height: 72px;
+      border-radius: 36px;
+      border-width: 3px;
+    }
+
+    /* Undo/Redo Group */
+    .action-group {
+      display: flex;
+      gap: 12px;
+    }
+
+    #viewport {
+      flex: 1;
+      touch-action: none;
+    }
+
+    /* Par Chooser */
+    .par-chooser {
+      padding: 12px;
+      border-top: 1px solid #0f3460;
+    }
+
+    .par-label {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+
+    .par-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .par-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 4px;
+      border: 1px solid #4ecca3;
+      background: transparent;
+      color: #4ecca3;
+      font-weight: bold;
+    }
+
+    #par-value {
+      font-size: 16px;
+      font-weight: bold;
+      color: #4ecca3;
+    }
+
+    /* Modal Mobile Tweak */
+    #export-content {
+      width: 95%;
+      height: 90%;
+    }
+  </style>
 </head>
+
 <body>
 
-<div id="sidebar">
-  <h2>FingerGolf Level Editor</h2>
-
-  <div class="section">
-    <h3>Course Info</h3>
-    <label>Name</label>
-    <input type="text" id="course-name" value="First Putt" />
-    <label>Par</label>
-    <input type="number" id="course-par" value="2" min="1" max="12" />
-  </div>
-
-  <div class="section">
-    <h3>Tools</h3>
-    <div style="margin-bottom: 8px;">
-      <span class="special-btn ball-btn" id="ball-tool" onclick="selectTool('ball')">Ball Start</span>
-      <span class="special-btn hole-btn" id="hole-tool" onclick="selectTool('hole')">Hole</span>
-      <span class="special-btn eraser-btn" id="eraser-tool" onclick="selectTool('eraser')">Eraser</span>
+  <div id="screen-home" class="screen visible">
+    <div class="logo">FingerGolf</div>
+    <div class="menu-btns">
+      <button class="big-btn" onclick="showScreen('level-select')">Start</button>
+      <button class="big-btn secondary" onclick="showScreen('builder')">Build</button>
     </div>
   </div>
 
-  <div class="section" style="flex:1; display:flex; flex-direction:column; min-height:0;">
-    <h3>Pieces</h3>
-    <div id="palette"></div>
-  </div>
-</div>
-
-<div id="main">
-  <div id="toolbar">
-    <div class="toolbar-group">
-      <span>View:</span>
-      <button class="tb-btn active" onclick="setViewAngle(0)" id="view-0">NE</button>
-      <button class="tb-btn" onclick="setViewAngle(1)" id="view-1">SE</button>
-      <button class="tb-btn" onclick="setViewAngle(2)" id="view-2">SW</button>
-      <button class="tb-btn" onclick="setViewAngle(3)" id="view-3">NW</button>
+  <div id="screen-level-select" class="screen">
+    <div class="screen-header">
+      <button class="back-btn" onclick="showScreen('home')">Back</button>
+      <div class="screen-title">Select Level</div>
     </div>
-
-    <div class="toolbar-sep"></div>
-
-    <div class="toolbar-group">
-      <span>Piece Rot:</span>
-      <button class="tb-btn" onclick="cyclePieceRotation(-1)">&larr;</button>
-      <span id="rotation-label">0&deg;</span>
-      <button class="tb-btn" onclick="cyclePieceRotation(1)">&rarr;</button>
-    </div>
-
-    <div class="toolbar-sep"></div>
-
-    <div class="toolbar-group">
-      <button class="tb-btn accent" onclick="exportCourse()">Export Swift</button>
-      <button class="tb-btn accent" onclick="exportJSON()">Export JSON</button>
-      <button class="tb-btn" onclick="importJSON()">Import JSON</button>
-    </div>
-
-    <div style="flex:1"></div>
-
-    <div class="toolbar-group">
-      <button class="tb-btn" onclick="fitCamera()">Fit View (F)</button>
-      <button class="tb-btn danger" onclick="clearAll()">Clear All</button>
+    <div class="level-grid" id="level-list">
+      <!-- Levels populated by JS -->
+      <div class="level-card" onclick="startLevel(0)">
+        <h4>Level 1</h4>
+        <span>Par 2</span>
+      </div>
     </div>
   </div>
 
-  <div id="viewport">
-    <div id="coords"></div>
-    <div id="loading">Loading model...</div>
-  </div>
-</div>
+  <div id="screen-builder" class="screen">
+    <div id="sidebar">
+      <div class="sidebar-header">
+        <button class="back-btn" onclick="showScreen('home')" style="padding: 8px 12px; font-size: 12px;">Menu</button>
+        <div style="color: #4ecca3; font-weight: bold; font-size: 14px;">Build</div>
+      </div>
 
-<div id="export-modal">
-  <div id="export-content">
-    <h2 id="export-title">Export</h2>
-    <textarea id="export-text" readonly></textarea>
-    <div class="modal-btns">
-      <button class="tb-btn" onclick="copyExport()">Copy to Clipboard</button>
-      <button class="tb-btn" onclick="closeExport()">Close</button>
+      <div class="palette-container">
+        <!-- Tools Section -->
+        <div class="category-group">
+          <h3>Tools</h3>
+          <div class="piece-grid">
+            <div class="piece-item" id="ball-tool" onclick="selectTool('ball')">
+              <div class="piece-preview" style="background: #2d5016; color: #4ecca3;">B</div>
+              <div class="piece-name">Start</div>
+            </div>
+            <div class="piece-item" id="hole-tool" onclick="selectTool('hole')">
+              <div class="piece-preview" style="background: #501616; color: #e74c3c;">H</div>
+              <div class="piece-name">Hole</div>
+            </div>
+            <div class="piece-item" id="eraser-tool" onclick="selectTool('eraser')">
+              <div class="piece-preview" style="background: #3d2c08; color: #f39c12;">E</div>
+              <div class="piece-name">Eraser</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="palette">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="par-chooser">
+        <div class="par-label">Level Par</div>
+        <div class="par-controls">
+          <button class="par-btn" onclick="adjustPar(-1)">-</button>
+          <div id="par-value">2</div>
+          <button class="par-btn" onclick="adjustPar(1)">+</button>
+        </div>
+      </div>
+
+      <div class="section" style="border:none; padding-bottom: 20px;">
+        <button class="tb-btn accent" onclick="exportJSON()" style="width: 100%; margin-bottom: 8px;">Save</button>
+        <button class="tb-btn" onclick="importJSON()" style="width: 100%;">Load</button>
+      </div>
+    </div>
+
+    <div id="main">
+      <div id="viewport">
+        <div id="coords"></div>
+        <div id="loading">Loading...</div>
+
+        <div class="ui-overlay">
+          <div class="top-controls">
+            <div class="action-group">
+              <div class="circle-btn" onclick="undo()" title="Undo">⟲</div>
+              <div class="circle-btn" onclick="redo()" title="Redo">⟳</div>
+            </div>
+            <div class="circle-btn" onclick="fitCamera()" title="Fit View">⛶</div>
+          </div>
+
+          <div class="bottom-controls">
+            <div class="circle-btn rotate" onclick="cyclePieceRotation(1)" title="Rotate Piece">↻</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-</div>
 
-<script type="importmap">
+  <div id="export-modal">
+    <div id="export-content">
+      <h2 id="export-title">Export</h2>
+      <textarea id="export-text" readonly></textarea>
+      <div class="modal-btns">
+        <button class="tb-btn" onclick="copyExport()">Copy</button>
+        <button class="tb-btn" onclick="closeExport()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="importmap">
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
@@ -316,802 +471,987 @@
 }
 </script>
 
-<script type="module">
-import * as THREE from 'three';
-import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+  <script type="module">
+    import * as THREE from 'three';
+    import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 
-// ============================================================
-// CONFIGURATION
-// ============================================================
-const MODEL_BASE = 'FingerGolf/MinigolfModels/';
-const TEXTURE_PATH = MODEL_BASE + 'Textures/colormap.png';
+    // ============================================================
+    // CONFIGURATION
+    // ============================================================
+    const MODEL_BASE = 'Assets/MiniGolf/Minigolf Kit/Models/OBJ format/';
+    const TEXTURE_PATH = 'Assets/MiniGolf/Minigolf Kit/Models/OBJ format/Textures/colormap.png';
 
-// ============================================================
-// STATE
-// ============================================================
-let pieces = {};
-let overlays = {}; // "x,z" -> { model, rotation } for windmill on tunnel stacking
-let ballStart = { x: 0, z: 0 };
-let holePos = { x: 0, z: 3 };
-let viewAngle = 0;
-let selectedPiece = 'end';
-let currentTool = 'piece';
-let pieceRotation = 0;
-let hoverCell = null;
+    // ============================================================
+    // STATE
+    // ============================================================
+    // = :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    // STATE & REFS
+    // = :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    let pieces = {};
+    let overlays = {};
+    let ballStart = { x: 0, z: 0 };
+    let holePos = { x: 0, z: 3 };
+    let selectedPiece = 'end';
+    let currentTool = 'piece';
+    let pieceRotation = 0;
+    let hoverCell = null;
 
-// Stacking rules: only these overlay types can go on top of tunnel types
-const TUNNEL_TYPES = ['tunnel-narrow', 'tunnel-wide', 'tunnel-double'];
-const OVERLAY_TYPES = ['structure-windmill', 'windmill'];
+    // Viewport & Camera
+    let azimuth = Math.PI / 4;
+    let elevation = Math.atan(1 / Math.sqrt(2));
+    let cameraTarget = new THREE.Vector3(0, 0, 1.5);
+    let zoomLevel = 1.0;
+    const CAM_DISTANCE = 25;
 
-// Undo
-let undoStack = [];
-const MAX_UNDO = 50;
+    // Stacking rules
+    const TUNNEL_TYPES = ['tunnel-narrow', 'tunnel-wide', 'tunnel-double'];
+    const OVERLAY_TYPES = ['structure-windmill', 'windmill'];
 
-function saveUndoState() {
-  undoStack.push({
-    pieces: JSON.parse(JSON.stringify(pieces)),
-    overlays: JSON.parse(JSON.stringify(overlays)),
-    ballStart: { ...ballStart },
-    holePos: { ...holePos },
-  });
-  if (undoStack.length > MAX_UNDO) undoStack.shift();
-}
+    // Camera anim state (legacy/transition)
+    let currentCamAngle = azimuth;
+    let targetCamAngle = azimuth;
 
-const modelCache = {};
-let colormapMaterial = null;
-const sceneObjects = {};
-const overlayObjects = {}; // scene objects for overlay layer
-let ballMarker = null;
-let holeMarker = null;
-let hoverMarker = null;
+    // Undo/Redo
+    let undoStack = [];
+    let redoStack = [];
+    const MAX_UNDO = 50;
 
-const ISO_ANGLES = [
-  Math.PI / 4,
-  Math.PI * 3 / 4,
-  Math.PI * 5 / 4,
-  Math.PI * 7 / 4,
-];
-const CAM_ELEVATION = Math.atan(1 / Math.sqrt(2));
-const CAM_DISTANCE = 20;
-
-// ============================================================
-// THREE.JS SETUP
-// ============================================================
-const viewport = document.getElementById('viewport');
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a2e);
-
-const frustumSize = 8;
-let aspect = viewport.clientWidth / viewport.clientHeight;
-const camera = new THREE.OrthographicCamera(
-  -frustumSize * aspect / 2, frustumSize * aspect / 2,
-  frustumSize / 2, -frustumSize / 2, 0.1, 100
-);
-scene.add(camera);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(viewport.clientWidth, viewport.clientHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-viewport.appendChild(renderer.domElement);
-
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-
-// Invisible ground plane for raycasting
-const groundPlane = new THREE.Mesh(
-  new THREE.PlaneGeometry(100, 100),
-  new THREE.MeshBasicMaterial({ visible: false })
-);
-groundPlane.rotation.x = -Math.PI / 2;
-scene.add(groundPlane);
-
-// Grid
-const gridHelper = new THREE.GridHelper(40, 40, 0x0f3460, 0x0a1a30);
-gridHelper.position.y = -0.01;
-scene.add(gridHelper);
-
-// ============================================================
-// LIGHTING
-// ============================================================
-const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
-sunLight.position.set(5, 15, 5);
-sunLight.castShadow = true;
-sunLight.shadow.mapSize.set(2048, 2048);
-sunLight.shadow.camera.left = -20;
-sunLight.shadow.camera.right = 20;
-sunLight.shadow.camera.top = 20;
-sunLight.shadow.camera.bottom = -20;
-scene.add(sunLight);
-
-scene.add(new THREE.HemisphereLight(0x87ceeb, 0x556644, 0.6));
-scene.add(new THREE.AmbientLight(0xc0c8d0, 0.4));
-
-// ============================================================
-// CAMERA
-// ============================================================
-let cameraTarget = new THREE.Vector3(0, 0, 1.5);
-let currentCamAngle = ISO_ANGLES[0];
-let targetCamAngle = ISO_ANGLES[0];
-
-function updateCameraPosition(immediate) {
-  if (!immediate) {
-    const diff = targetCamAngle - currentCamAngle;
-    let shortDiff = ((diff + Math.PI) % (Math.PI * 2)) - Math.PI;
-    if (shortDiff < -Math.PI) shortDiff += Math.PI * 2;
-    currentCamAngle += shortDiff * 0.15;
-  } else {
-    currentCamAngle = targetCamAngle;
-  }
-
-  camera.position.set(
-    cameraTarget.x + Math.sin(currentCamAngle) * Math.cos(CAM_ELEVATION) * CAM_DISTANCE,
-    cameraTarget.y + Math.sin(CAM_ELEVATION) * CAM_DISTANCE,
-    cameraTarget.z + Math.cos(currentCamAngle) * Math.cos(CAM_ELEVATION) * CAM_DISTANCE
-  );
-  camera.lookAt(cameraTarget);
-}
-
-function fitCameraToScene() {
-  const keys = Object.keys(pieces);
-  if (keys.length === 0) {
-    cameraTarget.set(0, 0, 1.5);
-    camera.zoom = 1;
-    camera.updateProjectionMatrix();
-    return;
-  }
-
-  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-  for (const key of keys) {
-    const [x, z] = key.split(',').map(Number);
-    minX = Math.min(minX, x);
-    maxX = Math.max(maxX, x);
-    minZ = Math.min(minZ, z);
-    maxZ = Math.max(maxZ, z);
-  }
-  minX = Math.min(minX, ballStart.x, holePos.x);
-  maxX = Math.max(maxX, ballStart.x, holePos.x);
-  minZ = Math.min(minZ, ballStart.z, holePos.z);
-  maxZ = Math.max(maxZ, ballStart.z, holePos.z);
-
-  cameraTarget.set((minX + maxX + 1) / 2, 0, (minZ + maxZ + 1) / 2);
-
-  const maxExtent = Math.max(maxX - minX + 2, maxZ - minZ + 2, 4);
-  camera.zoom = frustumSize / (maxExtent * 1.2);
-  camera.updateProjectionMatrix();
-}
-
-// ============================================================
-// MODEL LOADING
-// ============================================================
-const objLoader = new OBJLoader();
-const textureLoader = new THREE.TextureLoader();
-
-function loadTexture() {
-  return new Promise((resolve) => {
-    textureLoader.load(TEXTURE_PATH,
-      (tex) => {
-        tex.colorSpace = THREE.SRGBColorSpace;
-        colormapMaterial = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide });
-        resolve();
-      },
-      undefined,
-      () => {
-        console.warn('Could not load colormap, using fallback material');
-        colormapMaterial = new THREE.MeshLambertMaterial({ color: 0x4ecca3, side: THREE.DoubleSide });
-        resolve();
-      }
-    );
-  });
-}
-
-function loadModel(name) {
-  return new Promise((resolve) => {
-    if (modelCache[name]) {
-      resolve(modelCache[name].clone());
-      return;
+    function saveUndoState() {
+      undoStack.push({
+        pieces: JSON.parse(JSON.stringify(pieces)),
+        overlays: JSON.parse(JSON.stringify(overlays)),
+        ballStart: { ...ballStart },
+        holePos: { ...holePos },
+      });
+      if (undoStack.length > MAX_UNDO) undoStack.shift();
+      redoStack = []; // Clear redo on new action
     }
 
-    showLoading(true);
-    objLoader.load(MODEL_BASE + name + '.obj',
-      (obj) => {
-        obj.traverse((child) => {
-          if (child.isMesh) {
-            child.material = colormapMaterial.clone();
-            child.castShadow = true;
-            child.receiveShadow = true;
+    const modelCache = {};
+    let colormapMaterial = null;
+    const sceneObjects = {};
+    const overlayObjects = {};
+    let ballMarker = null;
+    let holeMarker = null;
+    let hoverMarker = null;
+
+    // ============================================================
+    // THREE.JS SETUP
+    // ============================================================
+    const viewport = document.getElementById('viewport');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+
+    const frustumSize = 8;
+    let aspect = viewport.clientWidth / viewport.clientHeight;
+    const camera = new THREE.OrthographicCamera(
+      -frustumSize * aspect / 2, frustumSize * aspect / 2,
+      frustumSize / 2, -frustumSize / 2, 0.1, 100
+    );
+    scene.add(camera);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    viewport.appendChild(renderer.domElement);
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    // Invisible ground plane for raycasting
+    const groundPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(100, 100),
+      new THREE.MeshBasicMaterial({ visible: false })
+    );
+    groundPlane.rotation.x = -Math.PI / 2;
+    scene.add(groundPlane);
+
+    // Grid
+    const gridHelper = new THREE.GridHelper(40, 40, 0x0f3460, 0x0a1a30);
+    gridHelper.position.y = -0.01;
+    scene.add(gridHelper);
+
+    // ============================================================
+    // LIGHTING
+    // ============================================================
+    const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    sunLight.position.set(5, 15, 5);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.set(2048, 2048);
+    sunLight.shadow.camera.left = -20;
+    sunLight.shadow.camera.right = 20;
+    sunLight.shadow.camera.top = 20;
+    sunLight.shadow.camera.bottom = -20;
+    scene.add(sunLight);
+
+    scene.add(new THREE.HemisphereLight(0x87ceeb, 0x556644, 0.6));
+    scene.add(new THREE.AmbientLight(0xc0c8d0, 0.4));
+
+    // = :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    // CAMERA & VIEWPORT
+    // = :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    function updateCameraPosition() {
+      camera.position.set(
+        cameraTarget.x + Math.sin(azimuth) * Math.cos(elevation) * CAM_DISTANCE,
+        cameraTarget.y + Math.sin(elevation) * CAM_DISTANCE,
+        cameraTarget.z + Math.cos(azimuth) * Math.cos(elevation) * CAM_DISTANCE
+      );
+      camera.lookAt(cameraTarget);
+      camera.zoom = zoomLevel;
+      camera.updateProjectionMatrix();
+    }
+
+    function fitCameraToScene() {
+      const keys = Object.keys(pieces);
+      if (keys.length === 0) {
+        cameraTarget.set(0, 0, 1.5);
+        zoomLevel = 1.0;
+        updateCameraPosition();
+        return;
+      }
+
+      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      for (const key of keys) {
+        const [x, z] = key.split(',').map(Number);
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minZ = Math.min(minZ, z);
+        maxZ = Math.max(maxZ, z);
+      }
+      minX = Math.min(minX, ballStart.x, holePos.x);
+      maxX = Math.max(maxX, ballStart.x, holePos.x);
+      minZ = Math.min(minZ, ballStart.z, holePos.z);
+      maxZ = Math.max(maxZ, ballStart.z, holePos.z);
+
+      cameraTarget.set((minX + maxX + 1) / 2, 0, (minZ + maxZ + 1) / 2);
+
+      const maxExtent = Math.max(maxX - minX + 2, maxZ - minZ + 2, 4);
+      zoomLevel = 6 / (maxExtent * 1.1);
+      updateCameraPosition();
+    }
+
+    // ============================================================
+    // MODEL LOADING
+    // ============================================================
+    const objLoader = new OBJLoader();
+    const textureLoader = new THREE.TextureLoader();
+
+    function loadTexture() {
+      return new Promise((resolve) => {
+        textureLoader.load(TEXTURE_PATH,
+          (tex) => {
+            tex.colorSpace = THREE.SRGBColorSpace;
+            colormapMaterial = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide });
+            resolve();
+          },
+          undefined,
+          () => {
+            console.warn('Could not load colormap, using fallback material');
+            colormapMaterial = new THREE.MeshLambertMaterial({ color: 0x4ecca3, side: THREE.DoubleSide });
+            resolve();
           }
-        });
-        modelCache[name] = obj;
-        showLoading(false);
-        resolve(obj.clone());
-      },
-      undefined,
-      () => {
-        // Fallback box
-        const cat = getCategoryForPiece(name);
-        const colors = CATEGORY_COLORS[cat] || CATEGORY_COLORS['Basic'];
-        const geo = new THREE.BoxGeometry(0.9, 0.15, 0.9);
-        const mat = new THREE.MeshLambertMaterial({ color: colors.fill });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.y = 0.075;
-        mesh.castShadow = true;
-        const group = new THREE.Group();
-        group.add(mesh);
-        modelCache[name] = group;
-        showLoading(false);
-        resolve(group.clone());
-      }
-    );
-  });
-}
-
-function showLoading(show) {
-  document.getElementById('loading').classList.toggle('visible', show);
-}
-
-// ============================================================
-// SCENE BUILDING
-// ============================================================
-async function placePieceInScene(x, z, piece) {
-  const key = `${x},${z}`;
-  if (sceneObjects[key]) {
-    scene.remove(sceneObjects[key]);
-    delete sceneObjects[key];
-  }
-
-  const model = await loadModel(piece.model);
-  model.position.set(x + 0.5, 0, z + 0.5);
-  model.rotation.y = piece.rotation * Math.PI / 180;
-  scene.add(model);
-  sceneObjects[key] = model;
-}
-
-function removePieceFromScene(x, z) {
-  const key = `${x},${z}`;
-  if (sceneObjects[key]) {
-    scene.remove(sceneObjects[key]);
-    delete sceneObjects[key];
-  }
-}
-
-async function placeOverlayInScene(x, z, piece) {
-  const key = `${x},${z}`;
-  if (overlayObjects[key]) {
-    scene.remove(overlayObjects[key]);
-    delete overlayObjects[key];
-  }
-
-  const model = await loadModel(piece.model);
-  model.position.set(x + 0.5, 0, z + 0.5);
-  model.rotation.y = piece.rotation * Math.PI / 180;
-  scene.add(model);
-  overlayObjects[key] = model;
-}
-
-function removeOverlayFromScene(x, z) {
-  const key = `${x},${z}`;
-  if (overlayObjects[key]) {
-    scene.remove(overlayObjects[key]);
-    delete overlayObjects[key];
-  }
-}
-
-function updateBallMarker() {
-  if (ballMarker) scene.remove(ballMarker);
-  const geo = new THREE.SphereGeometry(0.1, 16, 16);
-  const mat = new THREE.MeshLambertMaterial({ color: 0x4ecca3, emissive: 0x4ecca3, emissiveIntensity: 0.3 });
-  ballMarker = new THREE.Mesh(geo, mat);
-  ballMarker.position.set(ballStart.x + 0.5, 0.1, ballStart.z + 0.5);
-  ballMarker.castShadow = true;
-  scene.add(ballMarker);
-}
-
-function updateHoleMarker() {
-  if (holeMarker) scene.remove(holeMarker);
-  holeMarker = new THREE.Group();
-
-  // Dark circle
-  const holeGeo = new THREE.CircleGeometry(0.15, 24);
-  const holeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-  const holeMesh = new THREE.Mesh(holeGeo, holeMat);
-  holeMesh.rotation.x = -Math.PI / 2;
-  holeMesh.position.y = 0.01;
-  holeMarker.add(holeMesh);
-
-  // Pole
-  const poleGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.6, 8);
-  const poleMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
-  const pole = new THREE.Mesh(poleGeo, poleMat);
-  pole.position.y = 0.3;
-  holeMarker.add(pole);
-
-  // Flag
-  const flagGeo = new THREE.PlaneGeometry(0.25, 0.15);
-  const flagMat = new THREE.MeshLambertMaterial({ color: 0xe74c3c, side: THREE.DoubleSide });
-  const flag = new THREE.Mesh(flagGeo, flagMat);
-  flag.position.set(0.125, 0.525, 0);
-  holeMarker.add(flag);
-
-  holeMarker.position.set(holePos.x + 0.5, 0, holePos.z + 0.5);
-  scene.add(holeMarker);
-}
-
-function updateHoverMarker(x, z) {
-  if (hoverMarker) { scene.remove(hoverMarker); hoverMarker = null; }
-  if (x === null || currentTool === 'eraser') return;
-
-  if (currentTool === 'piece') {
-    const geo = new THREE.BoxGeometry(0.95, 0.02, 0.95);
-    const mat = new THREE.MeshBasicMaterial({ color: 0x4ecca3, transparent: true, opacity: 0.3 });
-    hoverMarker = new THREE.Mesh(geo, mat);
-    hoverMarker.position.set(x + 0.5, 0.01, z + 0.5);
-  } else if (currentTool === 'ball') {
-    const geo = new THREE.SphereGeometry(0.08, 16, 16);
-    const mat = new THREE.MeshBasicMaterial({ color: 0x4ecca3, transparent: true, opacity: 0.5 });
-    hoverMarker = new THREE.Mesh(geo, mat);
-    hoverMarker.position.set(x + 0.5, 0.1, z + 0.5);
-  } else if (currentTool === 'hole') {
-    const geo = new THREE.CircleGeometry(0.15, 24);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xe74c3c, transparent: true, opacity: 0.5 });
-    hoverMarker = new THREE.Mesh(geo, mat);
-    hoverMarker.rotation.x = -Math.PI / 2;
-    hoverMarker.position.set(x + 0.5, 0.02, z + 0.5);
-  }
-
-  if (hoverMarker) scene.add(hoverMarker);
-}
-
-async function rebuildScene() {
-  for (const key of Object.keys(sceneObjects)) {
-    scene.remove(sceneObjects[key]);
-    delete sceneObjects[key];
-  }
-  for (const key of Object.keys(overlayObjects)) {
-    scene.remove(overlayObjects[key]);
-    delete overlayObjects[key];
-  }
-  for (const [key, piece] of Object.entries(pieces)) {
-    const [x, z] = key.split(',').map(Number);
-    await placePieceInScene(x, z, piece);
-  }
-  for (const [key, piece] of Object.entries(overlays)) {
-    const [x, z] = key.split(',').map(Number);
-    await placeOverlayInScene(x, z, piece);
-  }
-  updateBallMarker();
-  updateHoleMarker();
-  fitCameraToScene();
-}
-
-// ============================================================
-// PIECE CATALOG
-// ============================================================
-const PIECE_CATEGORIES = {
-  'Basic': ['end', 'straight', 'corner', 'inner-corner', 'open', 'side', 'gap', 'crest'],
-  'Turns': ['round-corner-a', 'round-corner-b', 'round-corner-c', 'round-large-corner', 'round-large-corner-open', 'skew-corner', 'skew-large-corner', 'skew-large-corner-open', 'square-corner-a'],
-  'Ramps': ['ramp', 'ramp-low', 'ramp-medium', 'ramp-high', 'ramp-large', 'ramp-large-side', 'ramp-sharp', 'ramp-side', 'ramp-square'],
-  'Hills': ['hill-corner', 'hill-round', 'hill-square', 'bump', 'bump-down', 'bump-walls', 'bump-down-walls'],
-  'Obstacles': ['obstacle-block', 'obstacle-diamond', 'obstacle-triangle', 'narrow-block', 'narrow-round', 'narrow-square', 'block', 'block-borders'],
-  'Tunnels': ['tunnel-narrow', 'tunnel-wide', 'tunnel-double'],
-  'Splits': ['split', 'split-t', 'split-start', 'split-walls-to-open', 'walls-to-open'],
-  'Walls': ['wall-left', 'wall-right'],
-  'Structures': ['structure-windmill', 'windmill', 'structure-gate', 'structure-gate-building', 'structure-gate-wide', 'structure-gates', 'castle'],
-  'Spline Concave': ['spline-concave', 'spline-concave-cap-back', 'spline-concave-cap-front', 'spline-concave-corner-large', 'spline-concave-corner-small', 'spline-concave-curve', 'spline-concave-looping', 'spline-concave-straight', 'spline-concave-straight-bend', 'spline-concave-straight-bend-large', 'spline-concave-straight-bump-down', 'spline-concave-straight-bump-up', 'spline-concave-straight-hill-beginning', 'spline-concave-straight-hill-complete', 'spline-concave-straight-hill-complete-half', 'spline-concave-straight-hill-end', 'spline-concave-straight-skew-left', 'spline-concave-straight-skew-left-side', 'spline-concave-straight-skew-right', 'spline-concave-straight-skew-right-side', 'spline-concave-corner-large-ramp', 'spline-concave-corner-small-ramp'],
-  'Spline Default': ['spline-default', 'spline-default-cap-back', 'spline-default-cap-front', 'spline-default-corner-large', 'spline-default-corner-small', 'spline-default-curve', 'spline-default-looping', 'spline-default-straight', 'spline-default-straight-bend', 'spline-default-straight-bend-large', 'spline-default-straight-bump-down', 'spline-default-straight-bump-up', 'spline-default-straight-hill-beginning', 'spline-default-straight-hill-complete', 'spline-default-straight-hill-complete-half', 'spline-default-straight-hill-end', 'spline-default-straight-skew-left', 'spline-default-straight-skew-left-side', 'spline-default-straight-skew-right', 'spline-default-straight-skew-right-side', 'spline-default-corner-large-ramp', 'spline-default-corner-small-ramp'],
-  'Support': ['support', 'support-bottom', 'support-low', 'support-low-bottom', 'supports', 'supports-bottom', 'supports-low', 'supports-low-bottom'],
-};
-
-const CATEGORY_COLORS = {
-  'Basic':          { fill: '#4ecca3' },
-  'Turns':          { fill: '#6c9bdb' },
-  'Ramps':          { fill: '#e8a838' },
-  'Hills':          { fill: '#c8a050' },
-  'Obstacles':      { fill: '#e06060' },
-  'Tunnels':        { fill: '#9b6ed0' },
-  'Splits':         { fill: '#5cb8b2' },
-  'Walls':          { fill: '#a0a0a0' },
-  'Structures':     { fill: '#d0a0d0' },
-  'Spline Concave': { fill: '#70b870' },
-  'Spline Default': { fill: '#80c880' },
-  'Support':        { fill: '#808888' },
-};
-
-function getCategoryForPiece(model) {
-  for (const [cat, pcs] of Object.entries(PIECE_CATEGORIES)) {
-    if (pcs.includes(model)) return cat;
-  }
-  return 'Basic';
-}
-
-// ============================================================
-// PALETTE
-// ============================================================
-function buildPalette() {
-  const pal = document.getElementById('palette');
-  pal.innerHTML = '';
-  for (const [cat, models] of Object.entries(PIECE_CATEGORIES)) {
-    const div = document.createElement('div');
-    div.className = 'piece-category';
-    const h4 = document.createElement('h4');
-    h4.textContent = cat;
-    div.appendChild(h4);
-    for (const m of models) {
-      const btn = document.createElement('span');
-      btn.className = 'piece-btn';
-      btn.textContent = m;
-      btn.dataset.model = m;
-      if (m === selectedPiece && currentTool === 'piece') btn.classList.add('selected');
-      btn.onclick = () => {
-        selectedPiece = m;
-        currentTool = 'piece';
-        updateToolHighlights();
-      };
-      div.appendChild(btn);
+        );
+      });
     }
-    pal.appendChild(div);
-  }
-}
 
-function updateToolHighlights() {
-  document.querySelectorAll('.piece-btn').forEach(b => {
-    b.classList.toggle('selected', b.dataset.model === selectedPiece && currentTool === 'piece');
-  });
-  document.getElementById('ball-tool').classList.toggle('selected', currentTool === 'ball');
-  document.getElementById('hole-tool').classList.toggle('selected', currentTool === 'hole');
-  document.getElementById('eraser-tool').classList.toggle('selected', currentTool === 'eraser');
-}
+    function loadModel(name) {
+      return new Promise((resolve) => {
+        if (modelCache[name]) {
+          resolve(modelCache[name].clone());
+          return;
+        }
 
-// ============================================================
-// GLOBAL FUNCTIONS (onclick handlers)
-// ============================================================
-window.selectTool = function(tool) {
-  currentTool = tool;
-  updateToolHighlights();
-};
-
-window.setViewAngle = function(angle) {
-  viewAngle = angle;
-  targetCamAngle = ISO_ANGLES[angle];
-  for (let i = 0; i < 4; i++) {
-    document.getElementById('view-' + i).classList.toggle('active', i === angle);
-  }
-};
-
-window.cyclePieceRotation = function(dir) {
-  pieceRotation = ((pieceRotation / 90 + dir + 4) % 4) * 90;
-  document.getElementById('rotation-label').textContent = pieceRotation + '\u00B0';
-};
-
-window.fitCamera = fitCameraToScene;
-
-window.exportCourse = function() {
-  const name = document.getElementById('course-name').value || 'Untitled';
-  const par = parseInt(document.getElementById('course-par').value) || 3;
-  const pieceLines = [];
-  // Combine pieces and overlays into a single list
-  const allEntries = [...Object.entries(pieces), ...Object.entries(overlays)];
-  const sorted = allEntries.sort((a, b) => {
-    const [ax, az] = a[0].split(',').map(Number);
-    const [bx, bz] = b[0].split(',').map(Number);
-    return az !== bz ? az - bz : ax - bx;
-  });
-  for (const [key, piece] of sorted) {
-    const [x, z] = key.split(',').map(Number);
-    if (piece.rotation !== 0) {
-      pieceLines.push(`                PiecePlacement(model: "${piece.model}", x: ${x}, z: ${z}, rotation: ${piece.rotation}),`);
-    } else {
-      pieceLines.push(`                PiecePlacement(model: "${piece.model}", x: ${x}, z: ${z}),`);
+        showLoading(true);
+        objLoader.load(MODEL_BASE + name + '.obj',
+          (obj) => {
+            obj.traverse((child) => {
+              if (child.isMesh) {
+                child.material = colormapMaterial.clone();
+                child.castShadow = true;
+                child.receiveShadow = true;
+              }
+            });
+            modelCache[name] = obj;
+            showLoading(false);
+            resolve(obj.clone());
+          },
+          undefined,
+          () => {
+            // Fallback box
+            const cat = getCategoryForPiece(name);
+            const colors = CATEGORY_COLORS[cat] || CATEGORY_COLORS['Basic'];
+            const geo = new THREE.BoxGeometry(0.9, 0.15, 0.9);
+            const mat = new THREE.MeshLambertMaterial({ color: colors.fill });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.y = 0.075;
+            mesh.castShadow = true;
+            const group = new THREE.Group();
+            group.add(mesh);
+            modelCache[name] = group;
+            showLoading(false);
+            resolve(group.clone());
+          }
+        );
+      });
     }
-  }
-  const swift = `        CourseDefinition(\n            name: "${name}",\n            par: ${par},\n            pieces: [\n${pieceLines.join('\n')}\n            ],\n            ballStart: GridPosition(x: ${ballStart.x}, z: ${ballStart.z}),\n            holePosition: GridPosition(x: ${holePos.x}, z: ${holePos.z})\n        ),`;
-  document.getElementById('export-title').textContent = 'Swift CourseDefinition';
-  document.getElementById('export-text').value = swift;
-  document.getElementById('export-modal').classList.add('visible');
-};
 
-window.exportJSON = function() {
-  const name = document.getElementById('course-name').value || 'Untitled';
-  const par = parseInt(document.getElementById('course-par').value) || 3;
-  const piecesArray = [];
-  // Include both base pieces and overlays
-  for (const [key, piece] of Object.entries(pieces)) {
-    const [x, z] = key.split(',').map(Number);
-    piecesArray.push({ model: piece.model, position: { x, z }, rotation: piece.rotation });
-  }
-  for (const [key, piece] of Object.entries(overlays)) {
-    const [x, z] = key.split(',').map(Number);
-    piecesArray.push({ model: piece.model, position: { x, z }, rotation: piece.rotation });
-  }
-  piecesArray.sort((a, b) => a.position.z !== b.position.z ? a.position.z - b.position.z : a.position.x - b.position.x);
-  const json = JSON.stringify({
-    name, par,
-    pieces: piecesArray,
-    ballStart: { x: ballStart.x, z: ballStart.z },
-    holePosition: { x: holePos.x, z: holePos.z },
-    holeModel: 'hole-round'
-  }, null, 2);
-  document.getElementById('export-title').textContent = 'JSON Course';
-  document.getElementById('export-text').value = json;
-  document.getElementById('export-modal').classList.add('visible');
-};
+    function showLoading(show) {
+      document.getElementById('loading').classList.toggle('visible', show);
+    }
 
-window.importJSON = function() {
-  const input = prompt('Paste JSON course definition:');
-  if (!input) return;
-  try {
-    const data = JSON.parse(input);
-    saveUndoState();
-    pieces = {};
-    overlays = {};
-    // Separate overlay pieces from base pieces
-    // If two pieces share a position and one is an overlay type on a tunnel, stack them
-    const byPos = {};
-    for (const p of data.pieces) {
-      const x = p.position ? p.position.x : p.x;
-      const z = p.position ? p.position.z : p.z;
+    // ============================================================
+    // SCENE BUILDING
+    // ============================================================
+    async function placePieceInScene(x, z, piece) {
       const key = `${x},${z}`;
-      if (!byPos[key]) byPos[key] = [];
-      byPos[key].push({ model: p.model, rotation: p.rotation || 0 });
+      if (sceneObjects[key]) {
+        scene.remove(sceneObjects[key]);
+        delete sceneObjects[key];
+      }
+
+      const model = await loadModel(piece.model);
+      model.position.set(x + 0.5, 0, z + 0.5);
+      model.rotation.y = piece.rotation * Math.PI / 180;
+      scene.add(model);
+      sceneObjects[key] = model;
     }
-    for (const [key, entries] of Object.entries(byPos)) {
-      if (entries.length === 1) {
-        pieces[key] = entries[0];
-      } else {
-        // Multiple at same position - separate base from overlay
-        const base = entries.find(e => !OVERLAY_TYPES.includes(e.model));
-        const overlay = entries.find(e => OVERLAY_TYPES.includes(e.model));
-        if (base) pieces[key] = base;
-        if (overlay) overlays[key] = overlay;
-        if (!base && !overlay) pieces[key] = entries[0]; // fallback
+
+    function removePieceFromScene(x, z) {
+      const key = `${x},${z}`;
+      if (sceneObjects[key]) {
+        scene.remove(sceneObjects[key]);
+        delete sceneObjects[key];
       }
     }
-    if (data.ballStart) ballStart = { x: data.ballStart.x, z: data.ballStart.z };
-    if (data.holePosition) holePos = { x: data.holePosition.x, z: data.holePosition.z };
-    document.getElementById('course-name').value = data.name || 'Imported';
-    document.getElementById('course-par').value = data.par || 3;
-    rebuildScene();
-  } catch (e) {
-    alert('Invalid JSON: ' + e.message);
-  }
-};
 
-window.copyExport = function() {
-  const text = document.getElementById('export-text');
-  text.select();
-  navigator.clipboard.writeText(text.value);
-  const btn = event.target;
-  btn.textContent = 'Copied!';
-  setTimeout(() => btn.textContent = 'Copy to Clipboard', 1500);
-};
+    async function placeOverlayInScene(x, z, piece) {
+      const key = `${x},${z}`;
+      if (overlayObjects[key]) {
+        scene.remove(overlayObjects[key]);
+        delete overlayObjects[key];
+      }
 
-window.closeExport = function() {
-  document.getElementById('export-modal').classList.remove('visible');
-};
+      const model = await loadModel(piece.model);
+      model.position.set(x + 0.5, 0, z + 0.5);
+      model.rotation.y = piece.rotation * Math.PI / 180;
+      scene.add(model);
+      overlayObjects[key] = model;
+    }
 
-window.undo = function() {
-  if (undoStack.length === 0) return;
-  const state = undoStack.pop();
-  pieces = state.pieces;
-  overlays = state.overlays;
-  ballStart = state.ballStart;
-  holePos = state.holePos;
-  rebuildScene();
-};
-
-window.clearAll = function() {
-  if (!confirm('Clear all pieces?')) return;
-  saveUndoState();
-  pieces = {};
-  overlays = {};
-  ballStart = { x: 0, z: 0 };
-  holePos = { x: 2, z: 2 };
-  rebuildScene();
-};
-
-// ============================================================
-// MOUSE INTERACTION
-// ============================================================
-function getGridCellFromMouse(event) {
-  const rect = renderer.domElement.getBoundingClientRect();
-  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(mouse, camera);
-  const intersects = raycaster.intersectObject(groundPlane);
-  if (intersects.length > 0) {
-    const p = intersects[0].point;
-    return { x: Math.floor(p.x), z: Math.floor(p.z) };
-  }
-  return null;
-}
-
-let isPanning = false;
-let panStart = new THREE.Vector2();
-let panTargetStart = new THREE.Vector3();
-
-renderer.domElement.addEventListener('mousedown', (e) => {
-  if (e.button === 1 || (e.button === 0 && e.altKey)) {
-    isPanning = true;
-    panStart.set(e.clientX, e.clientY);
-    panTargetStart.copy(cameraTarget);
-    e.preventDefault();
-    return;
-  }
-  if (e.button === 0) {
-    const cell = getGridCellFromMouse(e);
-    if (cell) placeAtCell(cell);
-  }
-  if (e.button === 2) {
-    const cell = getGridCellFromMouse(e);
-    if (cell) {
-      const key = `${cell.x},${cell.z}`;
-      if (pieces[key] || overlays[key]) {
-        saveUndoState();
-        if (overlays[key]) {
-          delete overlays[key];
-          removeOverlayFromScene(cell.x, cell.z);
-        } else {
-          delete pieces[key];
-          removePieceFromScene(cell.x, cell.z);
-        }
+    function removeOverlayFromScene(x, z) {
+      const key = `${x},${z}`;
+      if (overlayObjects[key]) {
+        scene.remove(overlayObjects[key]);
+        delete overlayObjects[key];
       }
     }
-  }
-});
 
-renderer.domElement.addEventListener('mousemove', (e) => {
-  if (isPanning) {
-    const dx = (e.clientX - panStart.x) * 0.02;
-    const dy = (e.clientY - panStart.y) * 0.02;
-    const angle = currentCamAngle;
-    cameraTarget.x = panTargetStart.x - dx * Math.cos(angle) - dy * Math.sin(angle);
-    cameraTarget.z = panTargetStart.z + dx * Math.sin(angle) - dy * Math.cos(angle);
-    return;
-  }
-  const cell = getGridCellFromMouse(e);
-  if (cell) {
-    hoverCell = cell;
-    document.getElementById('coords').textContent = `x: ${cell.x}, z: ${cell.z}`;
-    updateHoverMarker(cell.x, cell.z);
-  } else {
-    hoverCell = null;
-    updateHoverMarker(null);
-  }
-});
-
-renderer.domElement.addEventListener('mouseup', () => { isPanning = false; });
-renderer.domElement.addEventListener('mouseleave', () => { isPanning = false; hoverCell = null; updateHoverMarker(null); });
-
-renderer.domElement.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  camera.zoom = Math.max(0.3, Math.min(4, camera.zoom + (e.deltaY > 0 ? -0.05 : 0.05)));
-  camera.updateProjectionMatrix();
-}, { passive: false });
-
-renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
-
-async function placeAtCell(cell) {
-  const key = `${cell.x},${cell.z}`;
-  saveUndoState();
-  switch (currentTool) {
-    case 'piece': {
-      const existing = pieces[key];
-      const isOverlay = OVERLAY_TYPES.includes(selectedPiece);
-      const existingIsTunnel = existing && TUNNEL_TYPES.includes(existing.model);
-
-      if (isOverlay && existingIsTunnel) {
-        // Stack overlay (windmill) on top of tunnel
-        overlays[key] = { model: selectedPiece, rotation: pieceRotation };
-        await placeOverlayInScene(cell.x, cell.z, overlays[key]);
-      } else if (!isOverlay && TUNNEL_TYPES.includes(selectedPiece) && overlays[key]) {
-        // Replacing tunnel under existing overlay - keep overlay
-        pieces[key] = { model: selectedPiece, rotation: pieceRotation };
-        await placePieceInScene(cell.x, cell.z, pieces[key]);
-      } else {
-        // Normal placement - replace piece and remove any overlay
-        pieces[key] = { model: selectedPiece, rotation: pieceRotation };
-        await placePieceInScene(cell.x, cell.z, pieces[key]);
-        if (overlays[key]) {
-          delete overlays[key];
-          removeOverlayFromScene(cell.x, cell.z);
-        }
-      }
-      break;
+    function updateBallMarker() {
+      if (ballMarker) scene.remove(ballMarker);
+      const geo = new THREE.SphereGeometry(0.1, 16, 16);
+      const mat = new THREE.MeshLambertMaterial({ color: 0x4ecca3, emissive: 0x4ecca3, emissiveIntensity: 0.3 });
+      ballMarker = new THREE.Mesh(geo, mat);
+      ballMarker.position.set(ballStart.x + 0.5, 0.1, ballStart.z + 0.5);
+      ballMarker.castShadow = true;
+      scene.add(ballMarker);
     }
-    case 'ball':
-      ballStart = { x: cell.x, z: cell.z };
+
+    function updateHoleMarker() {
+      if (holeMarker) scene.remove(holeMarker);
+      holeMarker = new THREE.Group();
+
+      // Dark circle
+      const holeGeo = new THREE.CircleGeometry(0.15, 24);
+      const holeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+      const holeMesh = new THREE.Mesh(holeGeo, holeMat);
+      holeMesh.rotation.x = -Math.PI / 2;
+      holeMesh.position.y = 0.01;
+      holeMarker.add(holeMesh);
+
+      // Pole
+      const poleGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.6, 8);
+      const poleMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+      const pole = new THREE.Mesh(poleGeo, poleMat);
+      pole.position.y = 0.3;
+      holeMarker.add(pole);
+
+      // Flag
+      const flagGeo = new THREE.PlaneGeometry(0.25, 0.15);
+      const flagMat = new THREE.MeshLambertMaterial({ color: 0xe74c3c, side: THREE.DoubleSide });
+      const flag = new THREE.Mesh(flagGeo, flagMat);
+      flag.position.set(0.125, 0.525, 0);
+      holeMarker.add(flag);
+
+      holeMarker.position.set(holePos.x + 0.5, 0, holePos.z + 0.5);
+      scene.add(holeMarker);
+    }
+
+    function updateHoverMarker(x, z) {
+      if (hoverMarker) { scene.remove(hoverMarker); hoverMarker = null; }
+      if (x === null || currentTool === 'eraser') return;
+
+      if (currentTool === 'piece') {
+        const geo = new THREE.BoxGeometry(0.95, 0.02, 0.95);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x4ecca3, transparent: true, opacity: 0.3 });
+        hoverMarker = new THREE.Mesh(geo, mat);
+        hoverMarker.position.set(x + 0.5, 0.01, z + 0.5);
+      } else if (currentTool === 'ball') {
+        const geo = new THREE.SphereGeometry(0.08, 16, 16);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x4ecca3, transparent: true, opacity: 0.5 });
+        hoverMarker = new THREE.Mesh(geo, mat);
+        hoverMarker.position.set(x + 0.5, 0.1, z + 0.5);
+      } else if (currentTool === 'hole') {
+        const geo = new THREE.CircleGeometry(0.15, 24);
+        const mat = new THREE.MeshBasicMaterial({ color: 0xe74c3c, transparent: true, opacity: 0.5 });
+        hoverMarker = new THREE.Mesh(geo, mat);
+        hoverMarker.rotation.x = -Math.PI / 2;
+        hoverMarker.position.set(x + 0.5, 0.02, z + 0.5);
+      }
+
+      if (hoverMarker) scene.add(hoverMarker);
+    }
+
+    async function rebuildScene() {
+      for (const key of Object.keys(sceneObjects)) {
+        scene.remove(sceneObjects[key]);
+        delete sceneObjects[key];
+      }
+      for (const key of Object.keys(overlayObjects)) {
+        scene.remove(overlayObjects[key]);
+        delete overlayObjects[key];
+      }
+      for (const [key, piece] of Object.entries(pieces)) {
+        const [x, z] = key.split(',').map(Number);
+        await placePieceInScene(x, z, piece);
+      }
+      for (const [key, piece] of Object.entries(overlays)) {
+        const [x, z] = key.split(',').map(Number);
+        await placeOverlayInScene(x, z, piece);
+      }
       updateBallMarker();
-      break;
-    case 'hole':
-      holePos = { x: cell.x, z: cell.z };
       updateHoleMarker();
-      break;
-    case 'eraser':
-      if (overlays[key]) {
-        delete overlays[key];
-        removeOverlayFromScene(cell.x, cell.z);
-      } else {
-        delete pieces[key];
-        removePieceFromScene(cell.x, cell.z);
+      fitCameraToScene();
+    }
+
+    // ============================================================
+    // PIECE CATALOG
+    // ============================================================
+    const PIECE_CATEGORIES = {
+      'Basic': ['end', 'straight', 'corner', 'inner-corner', 'open', 'side', 'gap', 'crest'],
+      'Turns': ['round-corner-a', 'round-corner-b', 'round-corner-c', 'round-large-corner', 'round-large-corner-open', 'skew-corner', 'skew-large-corner', 'skew-large-corner-open', 'square-corner-a'],
+      'Ramps': ['ramp', 'ramp-low', 'ramp-medium', 'ramp-high', 'ramp-large', 'ramp-large-side', 'ramp-sharp', 'ramp-side', 'ramp-square'],
+      'Hills': ['hill-corner', 'hill-round', 'hill-square', 'bump', 'bump-down', 'bump-walls', 'bump-down-walls'],
+      'Obstacles': ['obstacle-block', 'obstacle-diamond', 'obstacle-triangle', 'narrow-block', 'narrow-round', 'narrow-square', 'block', 'block-borders'],
+      'Basic': ['end', 'straight', 'corner', 'inner-corner', 'round-corner-a', 'round-corner-b', 'round-corner-c', 'square-corner-a'],
+      'Ramps': ['ramp-low', 'ramp-medium', 'ramp-high', 'ramp-sharp', 'ramp-square', 'ramp', 'hill-corner', 'skew-corner'],
+      'Tunnels': ['tunnel-narrow', 'tunnel-wide', 'tunnel-double'],
+      'Special': ['split', 'split-start', 'split-t', 'split-walls-to-open'],
+      'Decoration': ['flag-blue', 'flag-green', 'flag-red', 'flag-large-blue', 'flag-large-green', 'flag-large-red']
+    };
+
+    const CATEGORY_COLORS = {
+      'Basic': { fill: '#4ecca3' },
+      'Ramps': { fill: '#3498db' },
+      'Tunnels': { fill: '#9b59b6' },
+      'Special': { fill: '#f1c40f' },
+      'Decoration': { fill: '#e67e22' }
+    };
+
+    function getCategoryForPiece(model) {
+      for (const [cat, pcs] of Object.entries(PIECE_CATEGORIES)) {
+        if (pcs.includes(model)) return cat;
       }
-      break;
-  }
-}
+      return 'Basic';
+    }
 
-// ============================================================
-// KEYBOARD
-// ============================================================
-document.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-  if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
-    e.preventDefault();
-    window.undo();
-    return;
-  }
-  switch (e.key) {
-    case 'r': case 'R': window.cyclePieceRotation(1); break;
-    case 'q': case 'Q': window.cyclePieceRotation(-1); break;
-    case '1': window.setViewAngle(0); break;
-    case '2': window.setViewAngle(1); break;
-    case '3': window.setViewAngle(2); break;
-    case '4': window.setViewAngle(3); break;
-    case 'b': case 'B': window.selectTool('ball'); break;
-    case 'h': case 'H': window.selectTool('hole'); break;
-    case 'e': case 'E': window.selectTool('eraser'); break;
-    case 'f': case 'F': fitCameraToScene(); break;
-    case 'Escape': window.closeExport(); break;
-  }
-});
+    // ============================================================
+    // PALETTE
+    // ============================================================
+    // = :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    // UI & SCREENS
+    // = :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    window.showScreen = function (id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
+      document.getElementById('screen-' + id).classList.add('visible');
+      if (id === 'builder') onResize(); // Force renderer size
+    };
 
-// ============================================================
-// RESIZE
-// ============================================================
-function onResize() {
-  const w = viewport.clientWidth;
-  const h = viewport.clientHeight;
-  aspect = w / h;
-  camera.left = -frustumSize * aspect / 2;
-  camera.right = frustumSize * aspect / 2;
-  camera.top = frustumSize / 2;
-  camera.bottom = -frustumSize / 2;
-  camera.updateProjectionMatrix();
-  renderer.setSize(w, h);
-}
-window.addEventListener('resize', onResize);
+    window.adjustPar = function (dir) {
+      const val = document.getElementById('par-value');
+      let current = parseInt(val.textContent) + dir;
+      if (current < 1) current = 1;
+      if (current > 12) current = 12;
+      val.textContent = current;
+    };
 
-// ============================================================
-// ANIMATION LOOP
-// ============================================================
-function animate() {
-  requestAnimationFrame(animate);
-  updateCameraPosition(false);
-  renderer.render(scene, camera);
-}
+    async function buildPalette() {
+      const pal = document.getElementById('palette');
+      pal.innerHTML = '';
+      for (const [cat, models] of Object.entries(PIECE_CATEGORIES)) {
+        const group = document.createElement('div');
+        group.className = 'category-group';
+        const h3 = document.createElement('h3');
+        h3.textContent = cat;
+        group.appendChild(h3);
 
-// ============================================================
-// INIT
-// ============================================================
-async function init() {
-  buildPalette();
-  await loadTexture();
+        const grid = document.createElement('div');
+        grid.className = 'piece-grid';
 
-  pieces = {
-    '0,0': { model: 'end', rotation: 0 },
-    '0,1': { model: 'straight', rotation: 0 },
-    '0,2': { model: 'straight', rotation: 0 },
-    '0,3': { model: 'end', rotation: 0 },
-  };
-  ballStart = { x: 0, z: 0 };
-  holePos = { x: 0, z: 3 };
+        for (const m of models) {
+          const item = document.createElement('div');
+          item.className = 'piece-item';
+          item.id = 'piece-' + m;
+          if (m === selectedPiece && currentTool === 'piece') item.classList.add('selected');
 
-  await rebuildScene();
-  updateCameraPosition(true);
-  animate();
-}
+          const preview = document.createElement('div');
+          preview.className = 'piece-preview';
+          // Label fallback until we do canvas previews
+          preview.textContent = m.charAt(0).toUpperCase();
+          preview.style.backgroundColor = CATEGORY_COLORS[cat].fill + '22';
+          preview.style.color = CATEGORY_COLORS[cat].fill;
 
-init();
-</script>
+          const name = document.createElement('div');
+          name.className = 'piece-name';
+          name.textContent = m.replace(/-/g, ' ');
+
+          item.appendChild(preview);
+          item.appendChild(name);
+
+          item.onclick = () => {
+            selectedPiece = m;
+            currentTool = 'piece';
+            updateToolHighlights();
+          };
+          grid.appendChild(item);
+
+          // Proactive preview generation
+          createSmallPreview(m, preview);
+        }
+        group.appendChild(grid);
+        pal.appendChild(group);
+      }
+    }
+
+    async function createSmallPreview(modelName, container) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 80; canvas.height = 80;
+      container.innerHTML = '';
+      container.appendChild(canvas);
+
+      const pRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      const pScene = new THREE.Scene();
+      const pCam = new THREE.PerspectiveCamera(45, 1, 0.1, 10);
+      pCam.position.set(2, 2, 2);
+      pCam.lookAt(0, 0, 0);
+
+      const light = new THREE.DirectionalLight(0xffffff, 2);
+      light.position.set(1, 2, 1);
+      pScene.add(light);
+      pScene.add(new THREE.AmbientLight(0xffffff, 0.8));
+
+      const model = await loadModel(modelName);
+      model.position.set(0, -0.2, 0);
+      pScene.add(model);
+
+      pRenderer.render(pScene, pCam);
+      pRenderer.dispose();
+    }
+
+    function updateToolHighlights() {
+      document.querySelectorAll('.piece-btn').forEach(b => {
+        b.classList.toggle('selected', b.dataset.model === selectedPiece && currentTool === 'piece');
+      });
+      document.getElementById('ball-tool').classList.toggle('selected', currentTool === 'ball');
+      document.getElementById('hole-tool').classList.toggle('selected', currentTool === 'hole');
+      document.getElementById('eraser-tool').classList.toggle('selected', currentTool === 'eraser');
+    }
+
+    // ============================================================
+    // GLOBAL FUNCTIONS (onclick handlers)
+    // ============================================================
+    window.selectTool = function (tool) {
+      currentTool = tool;
+      updateToolHighlights();
+    };
+
+    window.setViewAngle = function (angle) {
+      viewAngle = angle;
+      targetCamAngle = ISO_ANGLES[angle];
+      for (let i = 0; i < 4; i++) {
+        document.getElementById('view-' + i).classList.toggle('active', i === angle);
+      }
+    };
+
+    window.cyclePieceRotation = function (dir) {
+      pieceRotation = ((pieceRotation / 90 + dir + 4) % 4) * 90;
+      document.getElementById('rotation-label').textContent = pieceRotation + '\u00B0';
+    };
+
+    window.fitCamera = fitCameraToScene;
+
+    window.exportCourse = function () {
+      const name = document.getElementById('course-name').value || 'Untitled';
+      const par = parseInt(document.getElementById('course-par').value) || 3;
+      const pieceLines = [];
+      // Combine pieces and overlays into a single list
+      const allEntries = [...Object.entries(pieces), ...Object.entries(overlays)];
+      const sorted = allEntries.sort((a, b) => {
+        const [ax, az] = a[0].split(',').map(Number);
+        const [bx, bz] = b[0].split(',').map(Number);
+        return az !== bz ? az - bz : ax - bx;
+      });
+      for (const [key, piece] of sorted) {
+        const [x, z] = key.split(',').map(Number);
+        if (piece.rotation !== 0) {
+          pieceLines.push(`                PiecePlacement(model: "${piece.model}", x: ${x}, z: ${z}, rotation: ${piece.rotation}),`);
+        } else {
+          pieceLines.push(`                PiecePlacement(model: "${piece.model}", x: ${x}, z: ${z}),`);
+        }
+      }
+      const swift = `        CourseDefinition(\n            name: "${name}",\n            par: ${par},\n            pieces: [\n${pieceLines.join('\n')}\n            ],\n            ballStart: GridPosition(x: ${ballStart.x}, z: ${ballStart.z}),\n            holePosition: GridPosition(x: ${holePos.x}, z: ${holePos.z})\n        ),`;
+      document.getElementById('export-title').textContent = 'Swift CourseDefinition';
+      document.getElementById('export-text').value = swift;
+      document.getElementById('export-modal').classList.add('visible');
+    };
+
+    window.exportJSON = function () {
+      const name = document.getElementById('course-name').value || 'Untitled';
+      const par = parseInt(document.getElementById('course-par').value) || 3;
+      const piecesArray = [];
+      // Include both base pieces and overlays
+      for (const [key, piece] of Object.entries(pieces)) {
+        const [x, z] = key.split(',').map(Number);
+        piecesArray.push({ model: piece.model, position: { x, y: 0, z }, rotation: piece.rotation });
+      }
+      for (const [key, piece] of Object.entries(overlays)) {
+        const [x, z] = key.split(',').map(Number);
+        piecesArray.push({ model: piece.model, position: { x, y: 0, z }, rotation: piece.rotation });
+      }
+      piecesArray.sort((a, b) => a.position.z !== b.position.z ? a.position.z - b.position.z : a.position.x - b.position.x);
+      const json = JSON.stringify({
+        name,
+        par,
+        pieces: piecesArray,
+        ballStart: { x: ballStart.x, y: 0, z: ballStart.z },
+        holePos: { x: holePos.x, y: 0, z: holePos.z }
+      }, null, 2);
+      document.getElementById('export-title').textContent = 'JSON Course';
+      document.getElementById('export-text').value = json;
+      document.getElementById('export-modal').classList.add('visible');
+    };
+
+    window.importJSON = function () {
+      const input = prompt('Paste JSON course definition:');
+      if (!input) return;
+      try {
+        const data = JSON.parse(input);
+        saveUndoState();
+        pieces = {};
+        overlays = {};
+        // Separate overlay pieces from base pieces
+        // If two pieces share a position and one is an overlay type on a tunnel, stack them
+        const byPos = {};
+        for (const p of data.pieces) {
+          const x = p.position ? p.position.x : p.x;
+          const z = p.position ? p.position.z : p.z;
+          const key = `${x},${z}`;
+          if (!byPos[key]) byPos[key] = [];
+          byPos[key].push({ model: p.model, rotation: p.rotation || 0 });
+        }
+        for (const [key, entries] of Object.entries(byPos)) {
+          if (entries.length === 1) {
+            pieces[key] = entries[0];
+          } else {
+            // Multiple at same position - separate base from overlay
+            const base = entries.find(e => !OVERLAY_TYPES.includes(e.model));
+            const overlay = entries.find(e => OVERLAY_TYPES.includes(e.model));
+            if (base) pieces[key] = base;
+            if (overlay) overlays[key] = overlay;
+            if (!base && !overlay) pieces[key] = entries[0]; // fallback
+          }
+        }
+        if (data.ballStart) ballStart = { x: data.ballStart.x, z: data.ballStart.z };
+        if (data.holePosition) holePos = { x: data.holePosition.x, z: data.holePosition.z };
+        document.getElementById('course-name').value = data.name || 'Imported';
+        document.getElementById('course-par').value = data.par || 3;
+        rebuildScene();
+      } catch (e) {
+        alert('Invalid JSON: ' + e.message);
+      }
+    };
+
+    window.copyExport = function () {
+      const text = document.getElementById('export-text');
+      text.select();
+      navigator.clipboard.writeText(text.value);
+      const btn = event.target;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy to Clipboard', 1500);
+    };
+
+    window.closeExport = function () {
+      document.getElementById('export-modal').classList.remove('visible');
+    };
+
+    window.undo = function () {
+      if (undoStack.length === 0) return;
+      const state = undoStack.pop();
+      pieces = state.pieces;
+      overlays = state.overlays;
+      ballStart = state.ballStart;
+      holePos = state.holePos;
+      rebuildScene();
+    };
+
+    window.clearAll = function () {
+      if (!confirm('Clear all pieces?')) return;
+      saveUndoState();
+      pieces = {};
+      overlays = {};
+      ballStart = { x: 0, z: 0 };
+      holePos = { x: 2, z: 2 };
+      rebuildScene();
+    };
+
+    // ============================================================
+    // MOUSE INTERACTION
+    // ============================================================
+    function getGridCellFromMouse(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const clientX = event.clientX !== undefined ? event.clientX : (event.touches ? event.touches[0].clientX : 0);
+      const clientY = event.clientY !== undefined ? event.clientY : (event.touches ? event.touches[0].clientY : 0);
+
+      mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObject(groundPlane);
+      if (intersects.length > 0) {
+        const p = intersects[0].point;
+        return { x: Math.floor(p.x), z: Math.floor(p.z) };
+      }
+      return null;
+    }
+
+    window.startLevel = function (index) {
+      // In a real app, load specific course data
+      showScreen('builder');
+    };
+    let touchState = {
+      isMoving: false,
+      lastX: 0, lastY: 0,
+      initialDist: 0,
+      initialZoom: 1,
+      mode: 'none', // 'rotate', 'pan', 'pinch'
+      lastTwoTap: 0 // Added for two-finger tap detection
+    };
+
+    renderer.domElement.addEventListener('mousedown', (e) => {
+      if (e.button === 1 || (e.button === 0 && e.altKey)) {
+        touchState.mode = 'pan';
+        touchState.lastX = e.clientX;
+        touchState.lastY = e.clientY;
+      } else if (e.button === 0) {
+        touchState.mode = 'rotate';
+        touchState.lastX = e.clientX;
+        touchState.lastY = e.clientY;
+        const cell = getGridCellFromMouse(e);
+        if (cell) placeAtCell(cell);
+      } else if (e.button === 2) {
+        const cell = getGridCellFromMouse(e);
+        if (cell) {
+          const key = `${cell.x},${cell.z}`;
+          if (pieces[key] || overlays[key]) {
+            saveUndoState();
+            if (overlays[key]) {
+              delete overlays[key];
+              removeOverlayFromScene(cell.x, cell.z);
+            } else {
+              delete pieces[key];
+              removePieceFromScene(cell.x, cell.z);
+            }
+          }
+        }
+      }
+    });
+
+    renderer.domElement.addEventListener('mousemove', (e) => {
+      if (touchState.mode === 'rotate') {
+        const dx = e.clientX - touchState.lastX;
+        const dy = e.clientY - touchState.lastY;
+        azimuth -= dx * 0.01;
+        elevation = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, elevation + dy * 0.01));
+        touchState.lastX = e.clientX;
+        touchState.lastY = e.clientY;
+        updateCameraPosition();
+      } else if (touchState.mode === 'pan') {
+        const dx = (e.clientX - touchState.lastX) * 0.02 / zoomLevel;
+        const dy = (e.clientY - touchState.lastY) * 0.02 / zoomLevel;
+        const angle = azimuth;
+        cameraTarget.x -= dx * Math.cos(angle) + dy * Math.sin(angle);
+        cameraTarget.z += dx * Math.sin(angle) - dy * Math.cos(angle);
+        touchState.lastX = e.clientX;
+        touchState.lastY = e.clientY;
+        updateCameraPosition();
+      }
+      const cell = getGridCellFromMouse(e);
+      if (cell) {
+        hoverCell = cell;
+        document.getElementById('coords').textContent = `x: ${cell.x}, z: ${cell.z}`;
+        updateHoverMarker(cell.x, cell.z);
+      }
+    });
+
+    renderer.domElement.addEventListener('mouseup', () => { touchState.mode = 'none'; });
+    renderer.domElement.addEventListener('mouseleave', () => { touchState.mode = 'none'; });
+
+    renderer.domElement.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      zoomLevel = Math.max(0.2, Math.min(5, zoomLevel + (e.deltaY > 0 ? -0.1 : 0.1)));
+      updateCameraPosition();
+    }, { passive: false });
+
+    renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    renderer.domElement.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (e.touches.length === 1) {
+        touchState.mode = 'rotate';
+        touchState.lastX = e.touches[0].clientX;
+        touchState.lastY = e.touches[0].clientY;
+        touchState.isMoving = false; // Reset for potential tap
+      } else if (e.touches.length === 2) {
+        touchState.mode = 'pinch';
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        touchState.initialDist = Math.sqrt(dx * dx + dy * dy);
+        touchState.initialZoom = zoomLevel;
+        touchState.lastX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        touchState.lastY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+        // Check for 2-finger tap (simple timer based check would be here, but let's just use start)
+        const now = Date.now();
+        if (touchState.lastTwoTap && now - touchState.lastTwoTap < 300) {
+          cameraTarget.copy(ballMarker.position);
+          updateCameraPosition();
+        }
+        touchState.lastTwoTap = now;
+      }
+    }, { passive: false });
+
+    renderer.domElement.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      touchState.isMoving = true;
+      if (e.touches.length === 1 && touchState.mode === 'rotate') {
+        const dx = e.touches[0].clientX - touchState.lastX;
+        const dy = e.touches[0].clientY - touchState.lastY;
+        azimuth -= dx * 0.01;
+        elevation = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, elevation + dy * 0.01));
+        touchState.lastX = e.touches[0].clientX;
+        touchState.lastY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        // Pinch Zoom
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const scale = dist / touchState.initialDist;
+        zoomLevel = Math.max(0.2, Math.min(5, touchState.initialZoom * scale));
+
+        // Two finger pan
+        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        const pdx = (midX - touchState.lastX) * 0.02 / zoomLevel;
+        const pdy = (midY - touchState.lastY) * 0.02 / zoomLevel;
+
+        const angle = azimuth;
+        cameraTarget.x -= pdx * Math.cos(angle) + pdy * Math.sin(angle);
+        cameraTarget.z += pdx * Math.sin(angle) - pdy * Math.cos(angle);
+
+        touchState.lastX = midX;
+        touchState.lastY = midY;
+      }
+      updateCameraPosition();
+    }, { passive: false });
+
+    renderer.domElement.addEventListener('touchend', (e) => {
+      if (!touchState.isMoving && touchState.mode === 'rotate') {
+        // Simple tap placement
+        const cell = getGridCellFromMouse({ clientX: touchState.lastX, clientY: touchState.lastY });
+        if (cell) placeAtCell(cell);
+      }
+      touchState.mode = 'none';
+    });
+
+    async function placeAtCell(cell) {
+      const key = `${cell.x},${cell.z}`;
+      saveUndoState();
+      switch (currentTool) {
+        case 'piece': {
+          const existing = pieces[key];
+          const isOverlay = OVERLAY_TYPES.includes(selectedPiece);
+          const existingIsTunnel = existing && TUNNEL_TYPES.includes(existing.model);
+
+          if (isOverlay && existingIsTunnel) {
+            // Stack overlay (windmill) on top of tunnel
+            overlays[key] = { model: selectedPiece, rotation: pieceRotation };
+            await placeOverlayInScene(cell.x, cell.z, overlays[key]);
+          } else if (!isOverlay && TUNNEL_TYPES.includes(selectedPiece) && overlays[key]) {
+            // Replacing tunnel under existing overlay - keep overlay
+            pieces[key] = { model: selectedPiece, rotation: pieceRotation };
+            await placePieceInScene(cell.x, cell.z, pieces[key]);
+          } else {
+            // Normal placement - replace piece and remove any overlay
+            pieces[key] = { model: selectedPiece, rotation: pieceRotation };
+            await placePieceInScene(cell.x, cell.z, pieces[key]);
+            if (overlays[key]) {
+              delete overlays[key];
+              removeOverlayFromScene(cell.x, cell.z);
+            }
+          }
+          break;
+        }
+        case 'ball':
+          ballStart = { x: cell.x, z: cell.z };
+          updateBallMarker();
+          break;
+        case 'hole':
+          holePos = { x: cell.x, z: cell.z };
+          updateHoleMarker();
+          break;
+        case 'eraser':
+          if (overlays[key]) {
+            delete overlays[key];
+            removeOverlayFromScene(cell.x, cell.z);
+          } else {
+            delete pieces[key];
+            removePieceFromScene(cell.x, cell.z);
+          }
+          break;
+      }
+    }
+
+    // ============================================================
+    // KEYBOARD
+    // ============================================================
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        window.undo();
+        return;
+      }
+      switch (e.key) {
+        case 'r': case 'R': window.cyclePieceRotation(1); break;
+        case 'q': case 'Q': window.cyclePieceRotation(-1); break;
+        case '1': window.setViewAngle(0); break;
+        case '2': window.setViewAngle(1); break;
+        case '3': window.setViewAngle(2); break;
+        case '4': window.setViewAngle(3); break;
+        case 'b': case 'B': window.selectTool('ball'); break;
+        case 'h': case 'H': window.selectTool('hole'); break;
+        case 'e': case 'E': window.selectTool('eraser'); break;
+        case 'f': case 'F': fitCameraToScene(); break;
+        case 'Escape': window.closeExport(); break;
+      }
+    });
+
+    // ============================================================
+    // RESIZE
+    // ============================================================
+    function onResize() {
+      const w = viewport.clientWidth;
+      const h = viewport.clientHeight;
+      aspect = w / h;
+      camera.left = -frustumSize * aspect / 2;
+      camera.right = frustumSize * aspect / 2;
+      camera.top = frustumSize / 2;
+      camera.bottom = -frustumSize / 2;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+    window.addEventListener('resize', onResize);
+
+    // ============================================================
+    // ANIMATION LOOP
+    // ============================================================
+    function animate() {
+      requestAnimationFrame(animate);
+      updateCameraPosition(false);
+      renderer.render(scene, camera);
+    }
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    window.undo = function () {
+      if (undoStack.length === 0) return;
+      const state = undoStack.pop();
+      // Save current state to redo
+      redoStack.push({
+        pieces: JSON.parse(JSON.stringify(pieces)),
+        overlays: JSON.parse(JSON.stringify(overlays)),
+        ballStart: { ...ballStart },
+        holePos: { ...holePos },
+      });
+      pieces = state.pieces;
+      overlays = state.overlays;
+      ballStart = state.ballStart;
+      holePos = state.holePos;
+      rebuildScene();
+    };
+
+    window.redo = function () {
+      if (redoStack.length === 0) return;
+      const state = redoStack.pop();
+      undoStack.push({
+        pieces: JSON.parse(JSON.stringify(pieces)),
+        overlays: JSON.parse(JSON.stringify(overlays)),
+        ballStart: { ...ballStart },
+        holePos: { ...holePos },
+      });
+      pieces = state.pieces;
+      overlays = state.overlays;
+      ballStart = state.ballStart;
+      holePos = state.holePos;
+      rebuildScene();
+    };
+
+    window.clearAll = function () {
+      saveUndoState();
+      pieces = {};
+      overlays = {};
+      ballStart = { x: 0, z: 0 };
+      holePos = { x: 2, z: 2 };
+      rebuildScene();
+    };
+
+    // = :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    // INIT
+    // = :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    async function init() {
+      await loadTexture();
+      buildPalette();
+
+      pieces = {
+        '0,0': { model: 'end', rotation: 0 },
+        '0,1': { model: 'straight', rotation: 0 },
+        '0,2': { model: 'straight', rotation: 0 },
+        '0,3': { model: 'end', rotation: 0 },
+      };
+      ballStart = { x: 0, z: 0 };
+      holePos = { x: 0, z: 3 };
+
+      await rebuildScene();
+      fitCameraToScene();
+      animate();
+    }
+
+    init();
+  </script>
 
 </body>
+
 </html>
