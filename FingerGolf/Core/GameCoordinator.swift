@@ -59,21 +59,19 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         // Build and display course
         guard let courseNode = courseManager.buildCurrentCourse() else { return }
 
-        // Setup physics for each piece - uses the actual mesh as collision surface
-        for child in courseNode.childNodes {
-            physicsManager.setupCoursePiecePhysics(for: child)
-        }
-
-        // Add hole trigger
+        // Add hole trigger (must be added before unified physics setup)
         let holeTrigger = physicsManager.setupHoleTrigger(at: definition.holePosition.scenePosition)
         courseNode.addChildNode(holeTrigger)
         holeDetector.setHolePosition(definition.holePosition.scenePosition)
+
+        // Setup unified physics for entire course - eliminates seams between pieces
+        // Creates a single mesh from all course pieces for seamless ball rolling
+        physicsManager.setupUnifiedCoursePhysics(for: courseNode)
 
         // Setup flag physics
         if let flagNode = courseNode.childNode(withName: "flag", recursively: true) {
             physicsManager.setupFlagPhysics(for: flagNode)
         }
-
         // Set course in scene
         sceneManager.setCourseRoot(courseNode)
 
@@ -91,9 +89,6 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         sceneManager.enablePerspectiveCamera()
         sceneManager.setFollowTarget(ballController.ballNode)
         sceneManager.snapCameraToBall()
-
-        // Add trajectory dots to scene
-        ballController.addToScene(sceneManager.scene.rootNode)
 
         // Reset turn manager
         turnManager.resetForNewHole(maxShots: definition.shotCount)

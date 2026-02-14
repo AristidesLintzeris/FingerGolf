@@ -17,15 +17,14 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
             options: nil
         )
         // Start KINEMATIC - ball sits perfectly still until the player hits it.
-        // Switched to dynamic on first shot by BallController.
         let body = SCNPhysicsBody(type: .kinematic, shape: shape)
 
-        body.mass = 0.0459
-        body.restitution = 0.5
-        body.friction = 0.3
-        body.rollingFriction = 0.08
-        body.angularDamping = 0.15
-        body.damping = 0.01
+        body.mass = 0.0459              // Standard golf ball mass (kg)
+        body.restitution = 0.4          // Moderate bounciness for mini-golf
+        body.friction = 0.2             // Lower friction for smoother rolling
+        body.rollingFriction = 0.02     // Very low rolling resistance (like smooth felt)
+        body.damping = 0.005            // Almost no air resistance
+        body.angularDamping = 0.05      // Very low spin damping for longer rolls
 
         body.categoryBitMask = PhysicsCategory.ball
         body.collisionBitMask = PhysicsCategory.course | PhysicsCategory.flag
@@ -33,65 +32,70 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
 
         body.isAffectedByGravity = false  // Off until first shot
         body.allowsResting = true
-        body.continuousCollisionDetectionThreshold = 0.035
+        body.continuousCollisionDetectionThreshold = 0.035 // Use radius for CCD
 
         ballNode.physicsBody = body
     }
 
     // MARK: - Course Physics
 
+    /// Creates a unified physics body for the entire course by combining all piece meshes
+    func setupUnifiedCoursePhysics(for courseRootNode: SCNNode) {
+        // Collect all course piece nodes (skip hole_visual and flag)
+        var coursePieces: [SCNNode] = []
+        for child in courseRootNode.childNodes {
+            if child.name == "hole_visual" || child.name == "flag" || child.name == "hole_trigger" {
+                continue
+            }
+            coursePieces.append(child)
+        }
+
+        guard !coursePieces.isEmpty else { return }
+
+        // Create a single unified physics shape from all course pieces
+        // This eliminates gaps and seams between individual pieces
+        let shape = SCNPhysicsShape(
+            node: courseRootNode,
+            options: [
+                .type: SCNPhysicsShape.ShapeType.concavePolyhedron,
+                .collisionMargin: NSNumber(value: 0.001),  // Very tight collision margin
+                .keepAsCompound: NSNumber(value: false)     // Merge into single shape
+            ]
+        )
+
+        let body = SCNPhysicsBody(type: .static, shape: shape)
+        body.categoryBitMask = PhysicsCategory.course
+        body.collisionBitMask = PhysicsCategory.ball
+
+        // Physics for golf ball interaction
+        body.restitution = 0.4     // Match ball restitution for consistent bounce
+        body.friction = 0.3        // Moderate friction for natural rolling
+
+        // Apply unified physics body to the course root node
+        courseRootNode.physicsBody = body
+    }
+
+    /// Legacy method - kept for backward compatibility but prefer setupUnifiedCoursePhysics
     func setupCoursePiecePhysics(for pieceNode: SCNNode) {
-        let (minBound, maxBound) = pieceNode.boundingBox
-        let width = CGFloat(maxBound.x - minBound.x)
-        let depth = CGFloat(maxBound.z - minBound.z)
-        let pieceHeight = maxBound.y - minBound.y
+        // Use the actual mesh geometry for accurate physics (ramps, hills, walls)
+        // concavePolyhedron is required for complex static geometry
+        let shape = SCNPhysicsShape(
+            node: pieceNode,
+            options: [
+                .type: SCNPhysicsShape.ShapeType.concavePolyhedron,
+                .collisionMargin: NSNumber(value: 0.005)
+            ]
+        )
 
-        // 1. Wall physics from mesh - MUST be created BEFORE adding floor plane child
-        //    so the concave polyhedron only contains the original model geometry.
-        //    Only for pieces with significant height (actual walls/borders).
-        if pieceHeight > 0.08 {
-            let shape = SCNPhysicsShape(
-                node: pieceNode,
-                options: [
-                    .type: SCNPhysicsShape.ShapeType.concavePolyhedron,
-                    .collisionMargin: NSNumber(value: 0.003)
-                ]
-            )
-            let body = SCNPhysicsBody(type: .static, shape: shape)
-            body.categoryBitMask = PhysicsCategory.course
-            body.collisionBitMask = PhysicsCategory.ball
-            body.restitution = 0.5
-            body.friction = 0.2
-            pieceNode.physicsBody = body
-        }
+        let body = SCNPhysicsBody(type: .static, shape: shape)
+        body.categoryBitMask = PhysicsCategory.course
+        body.collisionBitMask = PhysicsCategory.ball
 
-        // 2. Invisible floor plane for smooth rolling - added AFTER wall physics
-        //    so it's not included in the concave polyhedron shape.
-        //    Positioned at Y=0.035 so ball (radius 0.035) center sits at Y=0.07,
-        //    well above the mesh floor triangles (~Y=0.02-0.03).
-        if width > 0.1 && depth > 0.1 {
-            let overlap: CGFloat = 0.02
-            let floorPlane = SCNPlane(width: width + overlap, height: depth + overlap)
-            let floorNode = SCNNode(geometry: floorPlane)
-            floorNode.name = "floor_plane"
-            floorNode.position = SCNVector3(
-                (minBound.x + maxBound.x) / 2,
-                0.035,
-                (minBound.z + maxBound.z) / 2
-            )
-            floorNode.eulerAngles.x = -.pi / 2
-            floorNode.opacity = 0.0
+        // Physics for golf ball interaction
+        body.restitution = 0.4     // Match ball restitution for consistent bounce
+        body.friction = 0.3        // Moderate friction for natural rolling
 
-            let floorShape = SCNPhysicsShape(geometry: floorPlane, options: nil)
-            let floorBody = SCNPhysicsBody(type: .static, shape: floorShape)
-            floorBody.categoryBitMask = PhysicsCategory.course
-            floorBody.collisionBitMask = PhysicsCategory.ball
-            floorBody.friction = 0.15
-            floorBody.restitution = 0.05
-            floorNode.physicsBody = floorBody
-
-            pieceNode.addChildNode(floorNode)
-        }
+        pieceNode.physicsBody = body
     }
 
     // MARK: - Hole Trigger

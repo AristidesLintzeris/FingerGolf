@@ -81,8 +81,14 @@ struct GameSceneView: UIViewRepresentable {
         weak var scnView: SCNView?
         let gameCoordinator: GameCoordinator
 
-        /// Screen-space radius around ball for aim detection
-        private let ballTouchRadius: CGFloat = 100.0
+        /// World-space radius multiplier for ball touch detection (scales with zoom)
+        private let ballTouchRadiusMultiplier: Float = 3.0
+
+        /// Drag threshold before activating aim mode (prevents jitter)
+        private let aimDragThreshold: CGFloat = 15.0
+
+        /// Initial touch location for threshold detection
+        private var dragStartLocation: CGPoint?
 
         /// Decides if this drag controls ball or camera
         private var controlMode: ControlMode = .none
@@ -129,12 +135,13 @@ struct GameSceneView: UIViewRepresentable {
 
             switch gesture.state {
             case .began:
-                // Unity InputManager: decide ball vs camera based on distance
+                // Store initial touch location for threshold detection
+                dragStartLocation = location
+
+                // Check if touch is near ball
                 if isTouchNearBall(location) && gameCoordinator.ballController.ballIsStatic {
+                    // Don't activate aim mode yet - wait for drag threshold
                     controlMode = .ball
-                    if let worldPoint = hitTestGroundPlane(at: location) {
-                        gameCoordinator.aimBegan(worldPoint: worldPoint)
-                    }
                 } else {
                     controlMode = .camera
                 }
@@ -142,22 +149,47 @@ struct GameSceneView: UIViewRepresentable {
             case .changed:
                 switch controlMode {
                 case .ball:
-                    if let worldPoint = hitTestGroundPlane(at: location) {
-                        gameCoordinator.aimMoved(worldPoint: worldPoint)
+                    // CRITICAL: Lock camera during ball aiming - NO camera movement
+                    // Check if drag threshold exceeded
+                    if let startLoc = dragStartLocation {
+                        let dx = location.x - startLoc.x
+                        let dy = location.y - startLoc.y
+                        let distance = sqrt(dx * dx + dy * dy)
+
+                        if distance >= aimDragThreshold {
+                            // Threshold exceeded - activate aiming if not already active
+                            if !gameCoordinator.ballController.isAiming {
+                                if let worldPoint = hitTestGroundPlane(at: startLoc) {
+                                    gameCoordinator.aimBegan(worldPoint: worldPoint)
+                                }
+                            }
+                            dragStartLocation = nil
+                        }
                     }
+
+                    // Update aim if active
+                    if gameCoordinator.ballController.isAiming {
+                        if let worldPoint = hitTestGroundPlane(at: location) {
+                            gameCoordinator.aimMoved(worldPoint: worldPoint)
+                        }
+                    }
+                    // NO camera movement in ball mode!
+
                 case .camera:
-                    // Pass both horizontal and vertical deltas for orbit control
+                    // Camera mode - allow orbit
                     let translation = gesture.translation(in: scnView)
                     gesture.setTranslation(.zero, in: scnView)
                     gameCoordinator.rotateCamera(
                         deltaX: Float(translation.x),
                         deltaY: Float(translation.y)
                     )
+
                 case .none:
                     break
                 }
 
             case .ended, .cancelled:
+                dragStartLocation = nil
                 if controlMode == .ball {
                     gameCoordinator.aimEnded()
                 }
@@ -202,14 +234,33 @@ struct GameSceneView: UIViewRepresentable {
 
         // MARK: - Helpers
 
-        /// Check if touch is within screen-space radius of ball
+        /// Check if touch is within world-space radius of ball (scales with camera zoom)
         private func isTouchNearBall(_ point: CGPoint) -> Bool {
             guard let scnView else { return false }
             let ballPos = gameCoordinator.ballController.worldPosition
+
+            // Calculate world-space touch radius based on ball size
+            let worldRadius: Float = 0.035 * ballTouchRadiusMultiplier
+
+            // Project ball center to screen
             let ballScreen = scnView.projectPoint(ballPos)
+
+            // Project ball + radius to screen to get screen-space radius
+            let ballPlusRadius = SCNVector3(ballPos.x + worldRadius, ballPos.y, ballPos.z)
+            let radiusScreen = scnView.projectPoint(ballPlusRadius)
+
+            // Calculate screen-space radius
+            let screenRadius = sqrt(
+                pow(radiusScreen.x - ballScreen.x, 2) +
+                pow(radiusScreen.y - ballScreen.y, 2)
+            )
+
+            // Check if touch is within radius
             let dx = point.x - CGFloat(ballScreen.x)
             let dy = point.y - CGFloat(ballScreen.y)
-            return sqrt(dx * dx + dy * dy) < ballTouchRadius
+            let distance = sqrt(dx * dx + dy * dy)
+
+            return distance < CGFloat(screenRadius)
         }
 
         /// Unproject screen point to Y=0 ground plane
