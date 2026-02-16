@@ -1,8 +1,5 @@
 import SceneKit
 
-/// Ball controller handling physics, aiming, and shot mechanics.
-/// Slingshot pull-back: drag away from ball, shot goes opposite direction.
-/// Trajectory dots show shot direction and power.
 class BallController {
 
     // MARK: - Shot Configuration
@@ -12,9 +9,9 @@ class BallController {
 
     // MARK: - Ball State
 
-    private(set) var ballIsStatic: Bool = true
+    private(set) var ballIsStatic: Bool = false
     private(set) var pendingShot: SCNVector3?
-    private var shotGraceFrames: Int = 0
+    private var graceFrames: Int = 0
 
     // MARK: - Aiming State
 
@@ -24,7 +21,6 @@ class BallController {
     private(set) var direction: SCNVector3 = SCNVector3Zero
     private(set) var isAiming: Bool = false
 
-    /// Normalized power 0..1 for UI power bar
     var normalizedPower: Float {
         maxForce > 0 ? force / maxForce : 0
     }
@@ -34,20 +30,19 @@ class BallController {
     let ballNode: SCNNode
     let areaAffectorNode: SCNNode
 
-    /// Current world position of the ball (accounts for physics simulation).
-    /// SceneKit physics updates `presentation.position`, not `position`.
+    /// Actual physics-driven position of the ball.
     var worldPosition: SCNVector3 {
         ballNode.presentation.position
     }
 
-    // MARK: - Aim Line
+    // MARK: - Aim Line (flat box anchored at ball center)
 
     private var aimLineNode: SCNNode?
 
     // MARK: - Init
 
     init(color: String = "red") {
-        // Create procedural sphere (no model loading)
+        // Procedural sphere golf ball
         let sphere = SCNSphere(radius: 0.035)
         let mat = SCNMaterial()
         mat.diffuse.contents = UIColor.white
@@ -58,32 +53,37 @@ class BallController {
         ballNode = SCNNode(geometry: sphere)
         ballNode.name = "golf_ball"
 
-        // Area affector: ring around ball showing aim zone
+        // Aim ring around ball (shows touch zone)
         let ring = SCNTorus(ringRadius: 0.22, pipeRadius: 0.005)
         let ringMat = SCNMaterial()
         ringMat.diffuse.contents = UIColor.white.withAlphaComponent(0.4)
         ringMat.lightingModel = .constant
         ringMat.writesToDepthBuffer = false
-        ringMat.readsFromDepthBuffer = false // Always visible
+        ringMat.readsFromDepthBuffer = false
         ringMat.isDoubleSided = true
         ring.firstMaterial = ringMat
         areaAffectorNode = SCNNode(geometry: ring)
         areaAffectorNode.name = "area_affector"
         areaAffectorNode.renderingOrder = 90
-        areaAffectorNode.isHidden = false
+        areaAffectorNode.isHidden = true
 
-        // Create aim line (cylinder that will be rotated and scaled)
-        let cylinder = SCNCylinder(radius: 0.008, height: 1.0)
+        // Aim line: flat box that extends FROM the ball's position.
+        // Using a box lying flat in XZ avoids complex cylinder rotation math.
+        // length (Z) = 1.0 base, scaled at runtime to match drag distance.
+        let box = SCNBox(width: 0.012, height: 0.002, length: 1.0, chamferRadius: 0)
         let lineMat = SCNMaterial()
-        lineMat.diffuse.contents = UIColor.white.withAlphaComponent(0.7)
+        lineMat.diffuse.contents = UIColor.white.withAlphaComponent(0.8)
         lineMat.lightingModel = .constant
         lineMat.writesToDepthBuffer = false
         lineMat.readsFromDepthBuffer = false
-        cylinder.firstMaterial = lineMat
-        aimLineNode = SCNNode(geometry: cylinder)
+        box.firstMaterial = lineMat
+
+        aimLineNode = SCNNode(geometry: box)
         aimLineNode?.name = "aim_line"
         aimLineNode?.isHidden = true
         aimLineNode?.renderingOrder = 95
+        // Shift pivot so the box extends from Z=0 to Z=+1 (starts at node origin)
+        aimLineNode?.pivot = SCNMatrix4MakeTranslation(0, 0, -0.5)
     }
 
     // MARK: - Placement
@@ -91,34 +91,33 @@ class BallController {
     func placeBall(at position: SCNVector3) {
         ballNode.removeAllActions()
 
-        // Spawn ball at Y=0.07 (safe height for mesh floors)
-        // Set to kinematic so it is PERFECTLY still at the start.
-        ballNode.position = SCNVector3(position.x, 0.09, position.z)
+        // Mesh floor is at Y≈0.063. Ball radius is 0.035.
+        // Spawn at Y=0.2 so the ball visibly drops onto the course.
+        ballNode.position = SCNVector3(position.x, 0.2, position.z)
 
         ballNode.physicsBody?.velocity = SCNVector3Zero
         ballNode.physicsBody?.angularVelocity = SCNVector4Zero
-        ballNode.physicsBody?.type = .kinematic
+        ballNode.physicsBody?.type = .dynamic
         ballNode.physicsBody?.isAffectedByGravity = true
 
         ballNode.isHidden = false
         ballNode.opacity = 1.0
         ballNode.scale = SCNVector3(1, 1, 1)
 
-        ballIsStatic = true
+        // Ball is settling after drop — not ready for play yet
+        ballIsStatic = false
         pendingShot = nil
-        shotGraceFrames = 0
+        graceFrames = 40  // ~0.67s at 60fps for ball to settle on mesh
 
-        // Position aim ring slightly above floor surface (which is ~0.03)
-        areaAffectorNode.isHidden = false
-        areaAffectorNode.position = SCNVector3(position.x, 0.04, position.z)
+        areaAffectorNode.isHidden = true
+        areaAffectorNode.position = SCNVector3(position.x, 0.065, position.z)
 
-        // Add aim line to scene if not already added
         if let aimLineNode, aimLineNode.parent == nil {
             ballNode.parent?.addChildNode(aimLineNode)
         }
     }
 
-    // MARK: - Aiming (slingshot pull-back)
+    // MARK: - Aiming (direct aim — ball goes where you drag)
 
     func aimBegan(worldPoint: SCNVector3) {
         startPos = worldPosition
@@ -165,26 +164,30 @@ class BallController {
     private func updateAiming() {
         let ballPos = worldPosition
 
-        // Calculate direction from ball to finger (where we're aiming)
         let dx = endPos.x - ballPos.x
         let dz = endPos.z - ballPos.z
         let distance = sqrt(dx * dx + dz * dz)
         force = min(distance * forceModifier, maxForce)
 
-        // Shot direction = same as drag direction (direct aim, NOT slingshot)
+        // Direct aim: ball fires toward your finger
         direction = SCNVector3(dx, 0, dz)
 
         updateAimLine()
 
-        // Update aim ring visual feedback (scale and color)
+        // Visual feedback on aim ring
         let power = normalizedPower
         let s = 1.0 + power * 0.5
         areaAffectorNode.scale = SCNVector3(s, 1.0, s)
 
-        // Color transition: White (0 power) -> Red (max power)
-        let color = UIColor(red: 1.0, green: CGFloat(1.0 - power), blue: CGFloat(1.0 - power), alpha: 0.6)
+        let color = UIColor(
+            red: 1.0,
+            green: CGFloat(1.0 - power),
+            blue: CGFloat(1.0 - power),
+            alpha: 0.6
+        )
         areaAffectorNode.geometry?.firstMaterial?.diffuse.contents = color
     }
+
     private func resetAim() {
         isAiming = false
         force = 0
@@ -207,8 +210,6 @@ class BallController {
         guard let aimLineNode else { return }
 
         let ballPos = worldPosition
-
-        // Calculate direction from ball to finger (where we're aiming)
         let dx = endPos.x - ballPos.x
         let dz = endPos.z - ballPos.z
         let lineLength = sqrt(dx * dx + dz * dz)
@@ -218,24 +219,16 @@ class BallController {
             return
         }
 
-        let nx = dx / lineLength
-        let nz = dz / lineLength
+        // Position at ball center
+        aimLineNode.position = ballPos
 
-        // ANCHOR LINE AT BALL: Cylinder center is at midpoint between ball and finger
-        // This makes the line appear to start at ball and end at finger
-        let offsetX = ballPos.x + nx * lineLength * 0.5
-        let offsetZ = ballPos.z + nz * lineLength * 0.5
-        // Position line at ball's Y position (slightly above ground)
-        aimLineNode.position = SCNVector3(offsetX, ballPos.y, offsetZ)
+        // Rotate around Y so the box's +Z axis points from ball toward finger.
+        // atan2(dx, dz) = angle from +Z toward +X, which matches a Y-axis rotation.
+        aimLineNode.eulerAngles = SCNVector3(0, atan2(dx, dz), 0)
 
-        // Rotate cylinder to point from ball to finger
-        // Cylinder's default orientation is vertical (along Y-axis)
-        // We need to rotate it to horizontal and point in direction
-        let angle = atan2(nx, nz)
-        aimLineNode.eulerAngles = SCNVector3(Float.pi / 2, 0, -angle)
-
-        // Scale cylinder height to match distance from ball to finger
-        aimLineNode.scale = SCNVector3(1, lineLength, 1)
+        // Scale Z to stretch the line from ball to finger.
+        // The pivot shift makes the box extend from the ball outward.
+        aimLineNode.scale = SCNVector3(1, 1, lineLength)
 
         aimLineNode.isHidden = false
     }
@@ -251,8 +244,8 @@ class BallController {
         pendingShot = impulse
     }
 
-    /// Called each frame. Applies queued shots and checks ball state.
-    /// Returns true if ball just became static (shot completed).
+    /// Called every frame. Applies queued shots and checks ball state.
+    /// Returns true when the ball has just come to rest.
     @discardableResult
     func checkState() -> Bool {
         // Apply queued shot
@@ -260,22 +253,22 @@ class BallController {
             pendingShot = nil
             ballIsStatic = false
             areaAffectorNode.isHidden = true
-            shotGraceFrames = 20  // Longer grace period to let ball get rolling
+            graceFrames = 20
 
-            // Activate physics: switch from kinematic to dynamic, enable gravity
+            // Re-activate dynamic physics for the shot
             ballNode.physicsBody?.type = .dynamic
             ballNode.physicsBody?.isAffectedByGravity = true
             ballNode.physicsBody?.applyForce(impulse, asImpulse: true)
             return false
         }
 
-        // Grace period: let physics engine process the impulse
-        if shotGraceFrames > 0 {
-            shotGraceFrames -= 1
+        // Grace period — let the ball get moving before checking rest
+        if graceFrames > 0 {
+            graceFrames -= 1
             return false
         }
 
-        // Check if ball has come to rest
+        // Detect ball at rest
         if !ballIsStatic {
             guard let body = ballNode.physicsBody else { return false }
             let v = body.velocity
@@ -283,20 +276,20 @@ class BallController {
             let av = body.angularVelocity
             let angularSpeed = sqrt(av.x * av.x + av.y * av.y + av.z * av.z)
 
-            // Lower threshold - only stop when truly at rest
             if speed < 0.01 && angularSpeed < 0.02 {
                 ballIsStatic = true
                 body.velocity = SCNVector3Zero
                 body.angularVelocity = SCNVector4Zero
 
-                // Freeze in place to prevent physics jitter/sliding on slopes
+                // Freeze ball to prevent jitter/sliding on slopes
                 body.isAffectedByGravity = false
                 body.type = .kinematic
-                
+
                 let pos = worldPosition
                 ballNode.position = pos
+
+                // Show aim ring at ball's resting position
                 areaAffectorNode.isHidden = false
-                // Position ring slightly above the contact point (approx 0.035 below center)
                 areaAffectorNode.position = SCNVector3(pos.x, pos.y - 0.03, pos.z)
                 return true
             }
@@ -323,8 +316,9 @@ class BallController {
         ballNode.physicsBody?.isAffectedByGravity = false
         ballNode.physicsBody?.type = .kinematic
 
+        // Animate into hole — floor surface is at Y≈0.063
         let moveToHole = SCNAction.move(
-            to: SCNVector3(holePosition.x, 0.02, holePosition.z),
+            to: SCNVector3(holePosition.x, 0.063, holePosition.z),
             duration: 0.2
         )
         let shrink = SCNAction.scale(to: 0.4, duration: 0.3)
