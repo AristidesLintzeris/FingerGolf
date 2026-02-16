@@ -1,14 +1,49 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Finger Golf</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FingerGolf Level Editor</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+    </style>
 </head>
 <body>
-    <h1>Welcome to Finger Golf</h1>
+    <canvas id="gameCanvas"></canvas>
+    <script src="https://threejs.org/build/three.js"></script>
+    <script src="https://threejs.org/examples/js/loaders/OBJLoader.js"></script>
     <script>
-        // Load models from GitHub raw content URL
-        const modelPath = 'https://raw.githubusercontent.com/AristidesLintzeris/FingerGolf/main/Minigolf%20Kit/Models/';
-        // Code to load models goes here... 
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas') });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const loader = new THREE.OBJLoader();
+
+        // Load models from the specified URL
+        const modelUrl = 'https://raw.githubusercontent.com/AristidesLintzeris/FingerGolf/main/Minigolf%20Kit/Models/';
+
+        function loadModel(modelName) {
+            loader.load(modelUrl + modelName, function (object) {
+                // Position and scale the loaded object as necessary
+                object.position.set(0, 0, 0);
+                object.scale.set(1, 1, 1);
+                scene.add(object);
+            });
+        }
+
+        camera.position.z = 5;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        // Load example model
+        loadModel('exampleModel.obj'); // Change this to your actual OBJ model file name
+
+        animate();
     </script>
 </body>
 </html>
