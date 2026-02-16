@@ -264,10 +264,9 @@ class BallController {
             return false
         }
 
-        // Detect ball at rest — two-phase system for natural-looking deceleration.
-        // Phase 1: When the ball is crawling (speed < 0.05), temporarily boost damping
-        //          so the final roll visibly slows down rather than rolling at constant speed.
-        // Phase 2: When the ball is truly stopped (speed < 0.003), freeze it for the next shot.
+        // Detect ball at rest.
+        // SceneKit's rollingFriction + surface friction handle all deceleration naturally.
+        // We only freeze the ball once it's truly stopped to prevent slope sliding.
         if !ballIsStatic {
             guard let body = ballNode.physicsBody else { return false }
             let v = body.velocity
@@ -275,14 +274,7 @@ class BallController {
             let av = body.angularVelocity
             let angularSpeed = sqrt(av.x * av.x + av.y * av.y + av.z * av.z)
 
-            // Phase 1: Ball is crawling — ramp up damping for visible deceleration
-            if speed < 0.05 && speed >= 0.003 {
-                body.damping = 0.15
-                body.angularDamping = 0.3
-            }
-
-            // Phase 2: Ball is truly at rest — freeze it
-            if speed < 0.003 && angularSpeed < 0.008 {
+            if speed < 0.005 && angularSpeed < 0.01 {
                 ballIsStatic = true
                 body.velocity = SCNVector3Zero
                 body.angularVelocity = SCNVector4Zero
@@ -290,10 +282,6 @@ class BallController {
                 // Freeze ball to prevent jitter/sliding on slopes
                 body.isAffectedByGravity = false
                 body.type = .kinematic
-
-                // Reset damping to default values for the next shot
-                body.damping = 0.01
-                body.angularDamping = 0.1
 
                 let pos = worldPosition
                 ballNode.position = pos

@@ -21,15 +21,15 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
 
         // --- Mass & Bounce ---
         body.mass = 0.0459              // Standard golf ball mass in kg
-        body.restitution = 0.4          // Bounciness: 0 = dead stop, 1 = perfect bounce
+        body.restitution = 0.15         // Low bounce: ball stays grounded and rolls instead of bouncing
 
         // --- Friction & Damping ---
         // These control how quickly the ball decelerates while rolling.
         // Higher values = ball slows down faster = more natural-looking deceleration.
-        body.friction = 0.10            // Surface contact friction (grip on the green)
-        body.rollingFriction = 0.04     // Rolling resistance: primary deceleration force
+        body.friction = 0.02            // Surface contact friction (grip on the green)
+        body.rollingFriction = 0.04     // Rolling resistance: primary deceleration force (smooth curve)
         body.damping = 0.01            // Linear velocity damping: simulates air resistance
-        body.angularDamping = 0.1       // Angular velocity damping: how quickly spin decays
+        body.angularDamping = 0.09       // Angular velocity damping: how quickly spin decays
 
         // --- Collision Categories ---
         body.categoryBitMask = PhysicsCategory.ball
@@ -71,7 +71,7 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
         let body = SCNPhysicsBody(type: .static, shape: compoundShape)
         body.categoryBitMask = PhysicsCategory.course
         body.collisionBitMask = PhysicsCategory.ball
-        body.restitution = 0.4
+        body.restitution = 0.15
         body.friction = 0.3
 
         courseRootNode.physicsBody = body
