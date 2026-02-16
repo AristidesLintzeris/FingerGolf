@@ -330,7 +330,6 @@ const TEXTURE_PATH = MODEL_BASE + 'Textures/colormap.png';
 // STATE
 // ============================================================
 let pieces = {};
-let overlays = {}; // "x,z" -> { model, rotation } for windmill on tunnel stacking
 let ballStart = { x: 0, z: 0 };
 let holePos = { x: 0, z: 3 };
 let viewAngle = 0;
@@ -339,28 +338,9 @@ let currentTool = 'piece';
 let pieceRotation = 0;
 let hoverCell = null;
 
-// Stacking rules: only these overlay types can go on top of tunnel types
-const TUNNEL_TYPES = ['tunnel-narrow', 'tunnel-wide', 'tunnel-double'];
-const OVERLAY_TYPES = ['structure-windmill', 'windmill'];
-
-// Undo
-let undoStack = [];
-const MAX_UNDO = 50;
-
-function saveUndoState() {
-  undoStack.push({
-    pieces: JSON.parse(JSON.stringify(pieces)),
-    overlays: JSON.parse(JSON.stringify(overlays)),
-    ballStart: { ...ballStart },
-    holePos: { ...holePos },
-  });
-  if (undoStack.length > MAX_UNDO) undoStack.shift();
-}
-
 const modelCache = {};
 let colormapMaterial = null;
 const sceneObjects = {};
-const overlayObjects = {}; // scene objects for overlay layer
 let ballMarker = null;
 let holeMarker = null;
 let hoverMarker = null;
@@ -576,28 +556,6 @@ function removePieceFromScene(x, z) {
   }
 }
 
-async function placeOverlayInScene(x, z, piece) {
-  const key = `${x},${z}`;
-  if (overlayObjects[key]) {
-    scene.remove(overlayObjects[key]);
-    delete overlayObjects[key];
-  }
-
-  const model = await loadModel(piece.model);
-  model.position.set(x + 0.5, 0, z + 0.5);
-  model.rotation.y = piece.rotation * Math.PI / 180;
-  scene.add(model);
-  overlayObjects[key] = model;
-}
-
-function removeOverlayFromScene(x, z) {
-  const key = `${x},${z}`;
-  if (overlayObjects[key]) {
-    scene.remove(overlayObjects[key]);
-    delete overlayObjects[key];
-  }
-}
-
 function updateBallMarker() {
   if (ballMarker) scene.remove(ballMarker);
   const geo = new THREE.SphereGeometry(0.1, 16, 16);
@@ -668,17 +626,9 @@ async function rebuildScene() {
     scene.remove(sceneObjects[key]);
     delete sceneObjects[key];
   }
-  for (const key of Object.keys(overlayObjects)) {
-    scene.remove(overlayObjects[key]);
-    delete overlayObjects[key];
-  }
   for (const [key, piece] of Object.entries(pieces)) {
     const [x, z] = key.split(',').map(Number);
     await placePieceInScene(x, z, piece);
-  }
-  for (const [key, piece] of Object.entries(overlays)) {
-    const [x, z] = key.split(',').map(Number);
-    await placeOverlayInScene(x, z, piece);
   }
   updateBallMarker();
   updateHoleMarker();
@@ -790,9 +740,7 @@ window.exportCourse = function() {
   const name = document.getElementById('course-name').value || 'Untitled';
   const par = parseInt(document.getElementById('course-par').value) || 3;
   const pieceLines = [];
-  // Combine pieces and overlays into a single list
-  const allEntries = [...Object.entries(pieces), ...Object.entries(overlays)];
-  const sorted = allEntries.sort((a, b) => {
+  const sorted = Object.entries(pieces).sort((a, b) => {
     const [ax, az] = a[0].split(',').map(Number);
     const [bx, bz] = b[0].split(',').map(Number);
     return az !== bz ? az - bz : ax - bx;
@@ -815,12 +763,7 @@ window.exportJSON = function() {
   const name = document.getElementById('course-name').value || 'Untitled';
   const par = parseInt(document.getElementById('course-par').value) || 3;
   const piecesArray = [];
-  // Include both base pieces and overlays
   for (const [key, piece] of Object.entries(pieces)) {
-    const [x, z] = key.split(',').map(Number);
-    piecesArray.push({ model: piece.model, position: { x, z }, rotation: piece.rotation });
-  }
-  for (const [key, piece] of Object.entries(overlays)) {
     const [x, z] = key.split(',').map(Number);
     piecesArray.push({ model: piece.model, position: { x, z }, rotation: piece.rotation });
   }
@@ -842,30 +785,11 @@ window.importJSON = function() {
   if (!input) return;
   try {
     const data = JSON.parse(input);
-    saveUndoState();
     pieces = {};
-    overlays = {};
-    // Separate overlay pieces from base pieces
-    // If two pieces share a position and one is an overlay type on a tunnel, stack them
-    const byPos = {};
     for (const p of data.pieces) {
       const x = p.position ? p.position.x : p.x;
       const z = p.position ? p.position.z : p.z;
-      const key = `${x},${z}`;
-      if (!byPos[key]) byPos[key] = [];
-      byPos[key].push({ model: p.model, rotation: p.rotation || 0 });
-    }
-    for (const [key, entries] of Object.entries(byPos)) {
-      if (entries.length === 1) {
-        pieces[key] = entries[0];
-      } else {
-        // Multiple at same position - separate base from overlay
-        const base = entries.find(e => !OVERLAY_TYPES.includes(e.model));
-        const overlay = entries.find(e => OVERLAY_TYPES.includes(e.model));
-        if (base) pieces[key] = base;
-        if (overlay) overlays[key] = overlay;
-        if (!base && !overlay) pieces[key] = entries[0]; // fallback
-      }
+      pieces[`${x},${z}`] = { model: p.model, rotation: p.rotation || 0 };
     }
     if (data.ballStart) ballStart = { x: data.ballStart.x, z: data.ballStart.z };
     if (data.holePosition) holePos = { x: data.holePosition.x, z: data.holePosition.z };
@@ -890,21 +814,9 @@ window.closeExport = function() {
   document.getElementById('export-modal').classList.remove('visible');
 };
 
-window.undo = function() {
-  if (undoStack.length === 0) return;
-  const state = undoStack.pop();
-  pieces = state.pieces;
-  overlays = state.overlays;
-  ballStart = state.ballStart;
-  holePos = state.holePos;
-  rebuildScene();
-};
-
 window.clearAll = function() {
   if (!confirm('Clear all pieces?')) return;
-  saveUndoState();
   pieces = {};
-  overlays = {};
   ballStart = { x: 0, z: 0 };
   holePos = { x: 2, z: 2 };
   rebuildScene();
@@ -945,17 +857,8 @@ renderer.domElement.addEventListener('mousedown', (e) => {
   if (e.button === 2) {
     const cell = getGridCellFromMouse(e);
     if (cell) {
-      const key = `${cell.x},${cell.z}`;
-      if (pieces[key] || overlays[key]) {
-        saveUndoState();
-        if (overlays[key]) {
-          delete overlays[key];
-          removeOverlayFromScene(cell.x, cell.z);
-        } else {
-          delete pieces[key];
-          removePieceFromScene(cell.x, cell.z);
-        }
-      }
+      delete pieces[`${cell.x},${cell.z}`];
+      removePieceFromScene(cell.x, cell.z);
     }
   }
 });
@@ -992,33 +895,11 @@ renderer.domElement.addEventListener('wheel', (e) => {
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
 async function placeAtCell(cell) {
-  const key = `${cell.x},${cell.z}`;
-  saveUndoState();
   switch (currentTool) {
-    case 'piece': {
-      const existing = pieces[key];
-      const isOverlay = OVERLAY_TYPES.includes(selectedPiece);
-      const existingIsTunnel = existing && TUNNEL_TYPES.includes(existing.model);
-
-      if (isOverlay && existingIsTunnel) {
-        // Stack overlay (windmill) on top of tunnel
-        overlays[key] = { model: selectedPiece, rotation: pieceRotation };
-        await placeOverlayInScene(cell.x, cell.z, overlays[key]);
-      } else if (!isOverlay && TUNNEL_TYPES.includes(selectedPiece) && overlays[key]) {
-        // Replacing tunnel under existing overlay - keep overlay
-        pieces[key] = { model: selectedPiece, rotation: pieceRotation };
-        await placePieceInScene(cell.x, cell.z, pieces[key]);
-      } else {
-        // Normal placement - replace piece and remove any overlay
-        pieces[key] = { model: selectedPiece, rotation: pieceRotation };
-        await placePieceInScene(cell.x, cell.z, pieces[key]);
-        if (overlays[key]) {
-          delete overlays[key];
-          removeOverlayFromScene(cell.x, cell.z);
-        }
-      }
+    case 'piece':
+      pieces[`${cell.x},${cell.z}`] = { model: selectedPiece, rotation: pieceRotation };
+      await placePieceInScene(cell.x, cell.z, { model: selectedPiece, rotation: pieceRotation });
       break;
-    }
     case 'ball':
       ballStart = { x: cell.x, z: cell.z };
       updateBallMarker();
@@ -1028,13 +909,8 @@ async function placeAtCell(cell) {
       updateHoleMarker();
       break;
     case 'eraser':
-      if (overlays[key]) {
-        delete overlays[key];
-        removeOverlayFromScene(cell.x, cell.z);
-      } else {
-        delete pieces[key];
-        removePieceFromScene(cell.x, cell.z);
-      }
+      delete pieces[`${cell.x},${cell.z}`];
+      removePieceFromScene(cell.x, cell.z);
       break;
   }
 }
@@ -1044,11 +920,6 @@ async function placeAtCell(cell) {
 // ============================================================
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-  if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
-    e.preventDefault();
-    window.undo();
-    return;
-  }
   switch (e.key) {
     case 'r': case 'R': window.cyclePieceRotation(1); break;
     case 'q': case 'Q': window.cyclePieceRotation(-1); break;
