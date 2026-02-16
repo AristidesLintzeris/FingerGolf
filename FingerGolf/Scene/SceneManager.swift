@@ -89,27 +89,40 @@ class SceneManager {
     }
 
     private func setupLighting() {
+        // Ambient light: baseline illumination for all surfaces
         let ambientNode = SCNNode()
         let ambient = SCNLight()
         ambient.type = .ambient
-        ambient.color = UIColor(white: 0.75, alpha: 1.0)
+        ambient.color = UIColor(white: 0.80, alpha: 1.0)
         ambientNode.light = ambient
         scene.rootNode.addChildNode(ambientNode)
 
+        // Key light (sun): primary directional light casting shadows
         let sunNode = SCNNode()
         let sun = SCNLight()
         sun.type = .directional
         sun.color = UIColor(white: 0.6, alpha: 1.0)
         sun.castsShadow = true
         sun.shadowMode = .deferred
-        sun.shadowSampleCount = 16
+        sun.shadowSampleCount = 8
         sun.shadowRadius = 8
-        sun.shadowMapSize = CGSize(width: 2048, height: 2048)
+        sun.shadowMapSize = CGSize(width: 1024, height: 1024)
+        sun.shadowColor = UIColor(white: 0, alpha: 0.4)  // Semi-transparent shadows
         sun.maximumShadowDistance = 30
         sun.orthographicScale = 10
         sunNode.light = sun
         sunNode.eulerAngles = SCNVector3(-Float.pi / 3, Float.pi / 4, 0)
         scene.rootNode.addChildNode(sunNode)
+
+        // Fill light: softer directional from opposite the sun to reduce shadow harshness
+        let fillNode = SCNNode()
+        let fill = SCNLight()
+        fill.type = .directional
+        fill.color = UIColor(white: 0.3, alpha: 1.0)
+        fill.castsShadow = false
+        fillNode.light = fill
+        fillNode.eulerAngles = SCNVector3(-Float.pi / 4.5, -Float.pi * 3 / 4, 0)
+        scene.rootNode.addChildNode(fillNode)
     }
 
     // MARK: - Course Management

@@ -13,8 +13,8 @@ struct GameSceneView: UIViewRepresentable {
     func makeUIView(context: Context) -> SCNView {
         let scnView = SCNView()
         scnView.scene = coordinator.sceneManager.scene
-        scnView.isPlaying = true
-        scnView.antialiasingMode = .multisampling4X
+        scnView.isPlaying = false  // Start paused; updateUIView enables when gameplay begins
+        scnView.antialiasingMode = .multisampling2X
         scnView.backgroundColor = UIColor(red: 0.35, green: 0.58, blue: 0.78, alpha: 1.0)
         scnView.allowsCameraControl = false
         scnView.showsStatistics = false
@@ -67,6 +67,16 @@ struct GameSceneView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: SCNView, context: Context) {
+        // Only render the 3D scene during gameplay/editor states — saves GPU on menus
+        let shouldRender: Bool
+        switch coordinator.gameState {
+        case .playing, .paused, .holeComplete, .courseComplete, .failed, .editing:
+            shouldRender = true
+        case .mainMenu, .courseSelect, .findCourse:
+            shouldRender = false
+        }
+        uiView.isPlaying = shouldRender
+
         if scnViewBinding !== uiView {
             DispatchQueue.main.async {
                 scnViewBinding = uiView

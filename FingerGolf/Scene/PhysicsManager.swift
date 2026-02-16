@@ -12,26 +12,35 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
     // MARK: - Ball Physics
 
     func setupBallPhysics(for ballNode: SCNNode) {
+        // Collision shape: sphere matching ball geometry with small margin for stability
         let shape = SCNPhysicsShape(
             geometry: SCNSphere(radius: 0.035),
             options: [.collisionMargin: NSNumber(value: 0.002)]
         )
         let body = SCNPhysicsBody(type: .dynamic, shape: shape)
 
-        body.mass = 0.0459
-        body.restitution = 0.4
-        body.friction = 0.15
-        body.rollingFriction = 0.008
-        body.damping = 0.002
-        body.angularDamping = 0.02
+        // --- Mass & Bounce ---
+        body.mass = 0.0459              // Standard golf ball mass in kg
+        body.restitution = 0.4          // Bounciness: 0 = dead stop, 1 = perfect bounce
 
+        // --- Friction & Damping ---
+        // These control how quickly the ball decelerates while rolling.
+        // Higher values = ball slows down faster = more natural-looking deceleration.
+        body.friction = 0.10            // Surface contact friction (grip on the green)
+        body.rollingFriction = 0.04     // Rolling resistance: primary deceleration force
+        body.damping = 0.01            // Linear velocity damping: simulates air resistance
+        body.angularDamping = 0.1       // Angular velocity damping: how quickly spin decays
+
+        // --- Collision Categories ---
         body.categoryBitMask = PhysicsCategory.ball
         body.collisionBitMask = PhysicsCategory.course | PhysicsCategory.flag
         body.contactTestBitMask = PhysicsCategory.hole | PhysicsCategory.flag
 
+        // --- Physics Behavior ---
         body.isAffectedByGravity = true
-        body.allowsResting = true
-        body.continuousCollisionDetectionThreshold = 0.07 // 2x ball diameter for robust CCD
+        body.allowsResting = true       // Let SceneKit auto-rest the ball when nearly stopped
+        // Continuous collision detection: prevents ball tunneling through thin surfaces at high speed
+        body.continuousCollisionDetectionThreshold = 0.07 // 2x ball diameter
 
         ballNode.physicsBody = body
     }

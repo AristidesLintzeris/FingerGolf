@@ -37,7 +37,7 @@ class BallController {
 
     // MARK: - Aim Line (flat box anchored at ball center)
 
-    private var aimLineNode: SCNNode?
+    private(set) var aimLineNode: SCNNode?
 
     // MARK: - Init
 
@@ -70,7 +70,7 @@ class BallController {
         // Aim line: flat box that extends FROM the ball's position.
         // Using a box lying flat in XZ avoids complex cylinder rotation math.
         // length (Z) = 1.0 base, scaled at runtime to match drag distance.
-        let box = SCNBox(width: 0.012, height: 0.002, length: 1.0, chamferRadius: 0)
+        let box = SCNBox(width: 0.012, height: 0.006, length: 1.0, chamferRadius: 0)
         let lineMat = SCNMaterial()
         lineMat.diffuse.contents = UIColor.white.withAlphaComponent(0.8)
         lineMat.lightingModel = .constant
@@ -111,10 +111,6 @@ class BallController {
 
         areaAffectorNode.isHidden = true
         areaAffectorNode.position = SCNVector3(position.x, 0.065, position.z)
-
-        if let aimLineNode, aimLineNode.parent == nil {
-            ballNode.parent?.addChildNode(aimLineNode)
-        }
     }
 
     // MARK: - Aiming (direct aim — ball goes where you drag)
@@ -268,7 +264,10 @@ class BallController {
             return false
         }
 
-        // Detect ball at rest
+        // Detect ball at rest — two-phase system for natural-looking deceleration.
+        // Phase 1: When the ball is crawling (speed < 0.05), temporarily boost damping
+        //          so the final roll visibly slows down rather than rolling at constant speed.
+        // Phase 2: When the ball is truly stopped (speed < 0.003), freeze it for the next shot.
         if !ballIsStatic {
             guard let body = ballNode.physicsBody else { return false }
             let v = body.velocity
@@ -276,7 +275,14 @@ class BallController {
             let av = body.angularVelocity
             let angularSpeed = sqrt(av.x * av.x + av.y * av.y + av.z * av.z)
 
-            if speed < 0.01 && angularSpeed < 0.02 {
+            // Phase 1: Ball is crawling — ramp up damping for visible deceleration
+            if speed < 0.05 && speed >= 0.003 {
+                body.damping = 0.15
+                body.angularDamping = 0.3
+            }
+
+            // Phase 2: Ball is truly at rest — freeze it
+            if speed < 0.003 && angularSpeed < 0.008 {
                 ballIsStatic = true
                 body.velocity = SCNVector3Zero
                 body.angularVelocity = SCNVector4Zero
@@ -284,6 +290,10 @@ class BallController {
                 // Freeze ball to prevent jitter/sliding on slopes
                 body.isAffectedByGravity = false
                 body.type = .kinematic
+
+                // Reset damping to default values for the next shot
+                body.damping = 0.01
+                body.angularDamping = 0.1
 
                 let pos = worldPosition
                 ballNode.position = pos

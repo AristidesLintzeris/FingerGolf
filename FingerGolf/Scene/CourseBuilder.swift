@@ -19,15 +19,7 @@ class CourseBuilder {
             courseRoot.addChildNode(node)
         }
 
-        // Place hole model
-        let holeModelName = definition.holeModel ?? "hole-round"
-        if let holeNode = assetCatalog.loadPiece(named: holeModelName) {
-            holeNode.position = definition.holePosition.scenePosition
-            holeNode.name = "hole_visual"
-            courseRoot.addChildNode(holeNode)
-        }
-
-        // Add flag at hole position
+        // Add flag at hole position (the flag is the win target — no separate hole model)
         if let flagNode = assetCatalog.loadPiece(named: "flag-red") {
             flagNode.position = definition.holePosition.scenePosition
             flagNode.name = "flag"

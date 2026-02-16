@@ -59,9 +59,7 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         // Build and display course
         guard let courseNode = courseManager.buildCurrentCourse() else { return }
 
-        // Add hole trigger (must be added before unified physics setup)
-        let holeTrigger = physicsManager.setupHoleTrigger(at: definition.holePosition.scenePosition)
-        courseNode.addChildNode(holeTrigger)
+        // Set hole position for proximity-based capture fallback (ball stops near flag)
         holeDetector.setHolePosition(definition.holePosition.scenePosition)
 
         // Setup unified physics for entire course - eliminates seams between pieces
@@ -84,6 +82,11 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         ballController.placeBall(at: definition.ballStart.scenePosition)
         sceneManager.scene.rootNode.addChildNode(ballController.ballNode)
         sceneManager.scene.rootNode.addChildNode(ballController.areaAffectorNode)
+
+        // Add aim line to scene root (must be after ballNode is in the scene)
+        if let aimLine = ballController.aimLineNode, aimLine.parent == nil {
+            sceneManager.scene.rootNode.addChildNode(aimLine)
+        }
 
         // Camera setup
         sceneManager.enablePerspectiveCamera()
@@ -285,6 +288,11 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
         ballController.placeBall(at: definition.ballStart.scenePosition)
         turnManager.resetForNewHole(maxShots: definition.shotCount)
 
+        // Ensure aim line is in the scene
+        if let aimLine = ballController.aimLineNode, aimLine.parent == nil {
+            sceneManager.scene.rootNode.addChildNode(aimLine)
+        }
+
         sceneManager.setFollowTarget(ballController.ballNode)
         sceneManager.snapCameraToBall()
 
@@ -301,20 +309,7 @@ class GameCoordinator: ObservableObject, PhysicsManagerDelegate {
     // MARK: - PhysicsManagerDelegate
 
     func physicsManager(_ manager: PhysicsManager, ballDidEnterHole ballNode: SCNNode) {
-        guard gameState == .playing else { return }
-
-        if holeDetector.shouldCaptureBall(ballNode) {
-            let holePos = courseManager.currentCourse?.holePosition.scenePosition ?? SCNVector3Zero
-            ballController.captureInHole(holePosition: holePos)
-
-            if turnManager.ballIsMoving {
-                turnManager.shotTaken()
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.levelComplete()
-            }
-        }
+        // No-op: hole trigger removed. Flag contact is the win condition.
     }
 
     func physicsManager(_ manager: PhysicsManager, ballDidHitFlagPole ballNode: SCNNode) {
