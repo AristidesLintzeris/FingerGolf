@@ -91,8 +91,10 @@ struct GameSceneView: UIViewRepresentable {
         weak var scnView: SCNView?
         let gameCoordinator: GameCoordinator
 
-        /// World-space radius multiplier for ball touch detection (scales with zoom)
-        private let ballTouchRadiusMultiplier: Float = 3.0
+        /// World-space radius multiplier for ball touch detection (scales with zoom).
+        /// 7.0 × ball radius (0.035) = 0.245, slightly larger than the aim ring (0.22)
+        /// so touching anywhere inside the visible ring triggers aiming.
+        private let ballTouchRadiusMultiplier: Float = 7.0
 
         /// Drag threshold before activating aim mode (prevents jitter)
         private let aimDragThreshold: CGFloat = 15.0

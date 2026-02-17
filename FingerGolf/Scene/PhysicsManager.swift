@@ -24,24 +24,22 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
         // Bounce: moderate — realistic ricochets off walls without pinball energy
         body.restitution = 0.4
 
-        // Surface friction: LOW so the ball slides/rolls freely on the putting surface.
-        // SceneKit combines ball friction × surface friction for effective grip.
-        // Ball 0.08 × Course 0.2 = effective 0.016 — very slick, like a smooth putting green.
-        body.friction = 0.08
+        // Surface friction: enough grip so the ball doesn't slide on moderate slopes
+        // but still rolls freely on flat surfaces. Combined with course friction
+        // this determines whether the ball holds position on inclines.
+        body.friction = 0.2
 
-        // Rolling friction: the primary force that decelerates a rolling ball.
-        // This applies a constant opposing torque independent of velocity,
-        // producing the smooth, gradual slowdown characteristic of a golf ball.
-        // LOW value = ball rolls a long distance before stopping.
-        body.rollingFriction = 0.015
+        // Rolling friction: constant opposing torque that decelerates the ball.
+        // Keep LOW so the ball coasts gently at low speeds instead of stopping abruptly.
+        body.rollingFriction = 0.0015
 
-        // Linear damping: velocity-proportional drag (simulates air resistance).
-        // Keep very low — a golf ball barely loses speed to air at these velocities.
-        body.damping = 0.005
+        // Linear damping: velocity-proportional drag.
+        // This is the PRIMARY deceleration force — strong when fast, gentle when slow.
+        // Creates the natural "coast to a halt" feel instead of a constant-rate stop.
+        body.damping = 0.0005
 
         // Angular damping: how quickly spin decays.
-        // Low value keeps the ball visually spinning/rolling naturally.
-        body.angularDamping = 0.05
+        body.angularDamping = 0.008
 
         // Collision categories
         body.categoryBitMask = PhysicsCategory.ball
@@ -49,7 +47,7 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
         body.contactTestBitMask = PhysicsCategory.hole | PhysicsCategory.flag
 
         body.isAffectedByGravity = true
-        body.allowsResting = true
+        body.allowsResting = false
 
         // Continuous collision detection prevents the ball tunneling through
         // thin walls at high speed. Threshold = 2× ball diameter.
@@ -62,8 +60,8 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
 
     /// Builds a single compound physics shape from all course tile meshes.
     /// Using concavePolyhedron preserves the exact mesh geometry (walls, ramps, etc).
-    /// A minimal collision margin (0.002) bridges the 0.0001-unit gaps at Kenney tile seams
-    /// without creating noticeable ridges that would catch the ball.
+    /// Collision margin 0.005 bridges tile seams AND prevents the ball tunneling through
+    /// thin geometry (e.g., skew-corner walls that taper to zero thickness at diagonal edges).
     func setupUnifiedCoursePhysics(for courseRootNode: SCNNode) {
         let excludedNames: Set<String> = ["hole_visual", "flag", "hole_trigger"]
         let coursePieces = courseRootNode.childNodes.filter {
@@ -90,8 +88,8 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
         body.categoryBitMask = PhysicsCategory.course
         body.collisionBitMask = PhysicsCategory.ball
 
-        // Course surface properties
-        body.friction = 0.2
+        // Course surface properties — moderate friction for natural rolling
+        body.friction = 0.3
         body.restitution = 0.4
 
         courseRootNode.physicsBody = body
@@ -110,7 +108,7 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
                 geometry: geometry,
                 options: [
                     .type: SCNPhysicsShape.ShapeType.concavePolyhedron,
-                    .collisionMargin: NSNumber(value: 0.002)
+                    .collisionMargin: NSNumber(value: 0.005)
                 ]
             )
             shapes.append(shape)

@@ -12,6 +12,7 @@ class BallController {
     private(set) var ballIsStatic: Bool = false
     private(set) var pendingShot: SCNVector3?
     private var graceFrames: Int = 0
+    private var restFrameCount: Int = 0
 
     // MARK: - Aiming State
 
@@ -107,6 +108,7 @@ class BallController {
         ballIsStatic = false
         pendingShot = nil
         graceFrames = 40 // ~0.67s at 60fps for ball to settle
+        restFrameCount = 0
 
         areaAffectorNode.isHidden = true
         areaAffectorNode.position = SCNVector3(position.x, 0.15, position.z)
@@ -239,11 +241,10 @@ class BallController {
         if let impulse = pendingShot {
             pendingShot = nil
             ballIsStatic = false
+            restFrameCount = 0
             areaAffectorNode.isHidden = true
             graceFrames = 15
 
-            ballNode.physicsBody?.type = .dynamic
-            ballNode.physicsBody?.isAffectedByGravity = true
             ballNode.physicsBody?.applyForce(impulse, asImpulse: true)
             return false
         }
@@ -254,34 +255,61 @@ class BallController {
             return false
         }
 
-        // Rest detection: freeze ball only when truly stopped.
-        // The low thresholds let SceneKit's rolling friction handle
-        // the entire deceleration curve naturally.
-        if !ballIsStatic {
+        // If ball was declared at rest, check if it started moving again
+        // (e.g., gravity pulling it down a slope that friction can't hold)
+        if ballIsStatic {
             guard let body = ballNode.physicsBody else { return false }
             let v = body.velocity
             let speed = sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
-            let av = body.angularVelocity
-            let angularSpeed = sqrt(av.x * av.x + av.y * av.y + av.z * av.z)
 
-            if speed < 0.002 && angularSpeed < 0.005 {
-                ballIsStatic = true
-                body.velocity = SCNVector3Zero
-                body.angularVelocity = SCNVector4Zero
-
-                // Switch to kinematic to prevent jitter/sliding on slopes
-                body.isAffectedByGravity = false
-                body.type = .kinematic
-
+            if speed > 0.05 {
+                // Ball woke up — slope or external force moved it
+                ballIsStatic = false
+                restFrameCount = 0
+                areaAffectorNode.isHidden = true
+                graceFrames = 10
+            } else {
+                // Track any micro-drift so aim ring stays centered
                 let pos = worldPosition
-                ballNode.position = pos
-
-                // Show aim ring at ball's resting position
-                areaAffectorNode.isHidden = false
                 areaAffectorNode.position = SCNVector3(pos.x, pos.y - 0.03, pos.z)
-                return true
             }
+            return false
         }
+
+        // Rest detection: require many consecutive frames at near-zero speed
+        // before declaring rest. Physics handles ALL deceleration naturally.
+        guard let body = ballNode.physicsBody else { return false }
+        let v = body.velocity
+        let speed = sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+        let av = body.angularVelocity
+        let angularSpeed = sqrt(av.x * av.x + av.y * av.y + av.z * av.z)
+
+        // At speed 0.01 the ball moves ~0.0002 units/frame — invisible
+        if speed < 0.01 && angularSpeed < 0.02 {
+            restFrameCount += 1
+        } else {
+            restFrameCount = 0
+        }
+
+        // After 30 consecutive frames (~0.5s) of near-zero motion, declare rest.
+        // Ball stays dynamic with gravity — on slopes, gravity will re-awaken it.
+        if restFrameCount >= 30 {
+            ballIsStatic = true
+
+            // Zero residual micro-velocity but keep dynamic + gravity active.
+            // On flat ground, normal force counters gravity — ball stays put.
+            // On steep slopes, gravity overcomes friction — ball slides naturally.
+            body.velocity = SCNVector3Zero
+            body.angularVelocity = SCNVector4Zero
+
+            let pos = worldPosition
+            ballNode.position = pos
+
+            areaAffectorNode.isHidden = false
+            areaAffectorNode.position = SCNVector3(pos.x, pos.y - 0.03, pos.z)
+            return true
+        }
+
         return false
     }
 
