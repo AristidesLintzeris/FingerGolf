@@ -110,7 +110,7 @@ class CourseManager {
                 PiecePlacement(model: "skew-corner", x: -2, z: 2, rotation: 180),
                 PiecePlacement(model: "castle", x: -1, z: 2, rotation: 90),
                 PiecePlacement(model: "split-t", x: 0, z: 2),
-                PiecePlacement(model: "gap", x: 1, z: 2, rotation: 90),
+                PiecePlacement(model: "straight", x: 1, z: 2, rotation: 90),
                 PiecePlacement(model: "skew-corner", x: 2, z: 2, rotation: 90),
                 PiecePlacement(model: "skew-corner", x: -2, z: 3, rotation: 270),
                 PiecePlacement(model: "spline-default", x: -1, z: 3, rotation: 90),

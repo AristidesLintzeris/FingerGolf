@@ -12,82 +12,105 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
     // MARK: - Ball Physics
 
     func setupBallPhysics(for ballNode: SCNNode) {
-        // Collision shape: sphere matching ball geometry with small margin for stability
         let shape = SCNPhysicsShape(
             geometry: SCNSphere(radius: 0.035),
-            options: [.collisionMargin: NSNumber(value: 0.002)]
+            options: [.collisionMargin: NSNumber(value: 0.001)]
         )
         let body = SCNPhysicsBody(type: .dynamic, shape: shape)
 
-        // --- Mass & Bounce ---
-        body.mass = 0.0459              // Standard golf ball mass in kg
-        body.restitution = 0.15         // Low bounce: ball stays grounded and rolls instead of bouncing
+        // Mass: standard golf ball
+        body.mass = 0.0459
 
-        // --- Friction & Damping ---
-        // These control how quickly the ball decelerates while rolling.
-        // Higher values = ball slows down faster = more natural-looking deceleration.
-        body.friction = 0.02            // Surface contact friction (grip on the green)
-        body.rollingFriction = 0.04     // Rolling resistance: primary deceleration force (smooth curve)
-        body.damping = 0.01            // Linear velocity damping: simulates air resistance
-        body.angularDamping = 0.09       // Angular velocity damping: how quickly spin decays
+        // Bounce: moderate — realistic ricochets off walls without pinball energy
+        body.restitution = 0.4
 
-        // --- Collision Categories ---
+        // Surface friction: LOW so the ball slides/rolls freely on the putting surface.
+        // SceneKit combines ball friction × surface friction for effective grip.
+        // Ball 0.08 × Course 0.2 = effective 0.016 — very slick, like a smooth putting green.
+        body.friction = 0.08
+
+        // Rolling friction: the primary force that decelerates a rolling ball.
+        // This applies a constant opposing torque independent of velocity,
+        // producing the smooth, gradual slowdown characteristic of a golf ball.
+        // LOW value = ball rolls a long distance before stopping.
+        body.rollingFriction = 0.015
+
+        // Linear damping: velocity-proportional drag (simulates air resistance).
+        // Keep very low — a golf ball barely loses speed to air at these velocities.
+        body.damping = 0.005
+
+        // Angular damping: how quickly spin decays.
+        // Low value keeps the ball visually spinning/rolling naturally.
+        body.angularDamping = 0.05
+
+        // Collision categories
         body.categoryBitMask = PhysicsCategory.ball
         body.collisionBitMask = PhysicsCategory.course | PhysicsCategory.flag
         body.contactTestBitMask = PhysicsCategory.hole | PhysicsCategory.flag
 
-        // --- Physics Behavior ---
         body.isAffectedByGravity = true
-        body.allowsResting = true       // Let SceneKit auto-rest the ball when nearly stopped
-        // Continuous collision detection: prevents ball tunneling through thin surfaces at high speed
-        body.continuousCollisionDetectionThreshold = 0.07 // 2x ball diameter
+        body.allowsResting = true
+
+        // Continuous collision detection prevents the ball tunneling through
+        // thin walls at high speed. Threshold = 2× ball diameter.
+        body.continuousCollisionDetectionThreshold = 0.07
 
         ballNode.physicsBody = body
     }
 
-    // MARK: - Course Physics (compound per-piece + safety floor)
+    // MARK: - Course Physics
 
+    /// Builds a single compound physics shape from all course tile meshes.
+    /// Using concavePolyhedron preserves the exact mesh geometry (walls, ramps, etc).
+    /// A minimal collision margin (0.002) bridges the 0.0001-unit gaps at Kenney tile seams
+    /// without creating noticeable ridges that would catch the ball.
     func setupUnifiedCoursePhysics(for courseRootNode: SCNNode) {
-        // Separate course pieces from non-physics nodes
-        let excludedNames: Set<String> = ["hole_visual", "flag", "hole_trigger", "safety_floor"]
-        let coursePieces = courseRootNode.childNodes.filter { !excludedNames.contains($0.name ?? "") }
-
+        let excludedNames: Set<String> = ["hole_visual", "flag", "hole_trigger"]
+        let coursePieces = courseRootNode.childNodes.filter {
+            !excludedNames.contains($0.name ?? "")
+        }
         guard !coursePieces.isEmpty else { return }
 
-        // Build per-piece concavePolyhedron shapes with generous collision margin.
-        // The 0.005 margin inflates each piece's collision surface outward,
-        // bridging the 0.0001-unit gaps at tile seams (Kenney tiles use ±0.49995 not ±0.5).
         var shapes: [SCNPhysicsShape] = []
         var transforms: [NSValue] = []
 
         for piece in coursePieces {
-            collectShapes(from: piece, parentTransform: piece.transform, shapes: &shapes, transforms: &transforms)
+            collectShapes(
+                from: piece,
+                parentTransform: piece.transform,
+                shapes: &shapes,
+                transforms: &transforms
+            )
         }
 
         guard !shapes.isEmpty else { return }
 
-        let compoundShape = SCNPhysicsShape(shapes: shapes, transforms: transforms)
-
-        let body = SCNPhysicsBody(type: .static, shape: compoundShape)
+        let compound = SCNPhysicsShape(shapes: shapes, transforms: transforms)
+        let body = SCNPhysicsBody(type: .static, shape: compound)
         body.categoryBitMask = PhysicsCategory.course
         body.collisionBitMask = PhysicsCategory.ball
-        body.restitution = 0.15
-        body.friction = 0.3
+
+        // Course surface properties
+        body.friction = 0.2
+        body.restitution = 0.4
 
         courseRootNode.physicsBody = body
-
-        // Add safety floor to catch any ball that clips through seams
-        addSafetyFloor(to: courseRootNode)
     }
 
-    /// Recursively collect geometry from a node tree into physics shapes
-    private func collectShapes(from node: SCNNode, parentTransform: SCNMatrix4, shapes: inout [SCNPhysicsShape], transforms: inout [NSValue]) {
+    /// Recursively collects geometry from a node tree, building concavePolyhedron
+    /// shapes positioned via their accumulated world transforms.
+    private func collectShapes(
+        from node: SCNNode,
+        parentTransform: SCNMatrix4,
+        shapes: inout [SCNPhysicsShape],
+        transforms: inout [NSValue]
+    ) {
         if let geometry = node.geometry {
             let shape = SCNPhysicsShape(
                 geometry: geometry,
                 options: [
                     .type: SCNPhysicsShape.ShapeType.concavePolyhedron,
-                    .collisionMargin: NSNumber(value: 0.005)
+                    .collisionMargin: NSNumber(value: 0.002)
                 ]
             )
             shapes.append(shape)
@@ -95,41 +118,14 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
         }
 
         for child in node.childNodes {
-            let childWorldTransform = SCNMatrix4Mult(child.transform, parentTransform)
-            collectShapes(from: child, parentTransform: childWorldTransform, shapes: &shapes, transforms: &transforms)
+            let childTransform = SCNMatrix4Mult(child.transform, parentTransform)
+            collectShapes(
+                from: child,
+                parentTransform: childTransform,
+                shapes: &shapes,
+                transforms: &transforms
+            )
         }
-    }
-
-    /// Invisible floor plane spanning the entire course, just below the play surface (Y≈0.063).
-    /// Catches any ball that clips through triangle mesh seams.
-    private func addSafetyFloor(to courseRootNode: SCNNode) {
-        let (minBound, maxBound) = courseRootNode.boundingBox
-        let width = maxBound.x - minBound.x + 2.0
-        let length = maxBound.z - minBound.z + 2.0
-        let centerX = (maxBound.x + minBound.x) / 2
-        let centerZ = (maxBound.z + minBound.z) / 2
-
-        let floorGeo = SCNBox(width: CGFloat(width), height: 0.02, length: CGFloat(length), chamferRadius: 0)
-        floorGeo.firstMaterial?.diffuse.contents = UIColor.clear
-        floorGeo.firstMaterial?.transparency = 0
-
-        let floorNode = SCNNode(geometry: floorGeo)
-        floorNode.name = "safety_floor"
-        // Top surface at Y=0.03, just below mesh play surface (Y=0.063)
-        floorNode.position = SCNVector3(centerX, 0.02, centerZ)
-
-        let floorShape = SCNPhysicsShape(
-            geometry: floorGeo,
-            options: [.type: SCNPhysicsShape.ShapeType.boundingBox]
-        )
-        let floorBody = SCNPhysicsBody(type: .static, shape: floorShape)
-        floorBody.categoryBitMask = PhysicsCategory.course
-        floorBody.collisionBitMask = PhysicsCategory.ball
-        floorBody.friction = 0.3
-        floorBody.restitution = 0.2
-        floorNode.physicsBody = floorBody
-
-        courseRootNode.addChildNode(floorNode)
     }
 
     // MARK: - Hole Trigger
@@ -137,18 +133,17 @@ class PhysicsManager: NSObject, SCNPhysicsContactDelegate {
     func setupHoleTrigger(at position: SCNVector3) -> SCNNode {
         let geo = SCNCylinder(radius: 0.08, height: 0.02)
         geo.firstMaterial?.diffuse.contents = UIColor.clear
-        let triggerNode = SCNNode(geometry: geo)
-        triggerNode.name = "hole_trigger"
-        // Position at play surface level (Y=0.063)
-        triggerNode.position = SCNVector3(position.x, 0.07, position.z)
+        let node = SCNNode(geometry: geo)
+        node.name = "hole_trigger"
+        node.position = SCNVector3(position.x, 0.15, position.z)
 
         let body = SCNPhysicsBody(type: .static, shape: nil)
         body.categoryBitMask = PhysicsCategory.hole
         body.collisionBitMask = 0
         body.contactTestBitMask = PhysicsCategory.ball
-        triggerNode.physicsBody = body
+        node.physicsBody = body
 
-        return triggerNode
+        return node
     }
 
     // MARK: - Flag Physics

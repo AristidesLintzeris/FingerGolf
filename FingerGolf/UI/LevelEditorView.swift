@@ -10,7 +10,7 @@ struct LevelEditorView: View {
 
     // Piece categories (matching Kenney Minigolf Kit website sections)
     static let pieceCategories: [(name: String, pieces: [String])] = [
-        ("Tracks", ["straight", "end", "start", "open", "side", "gap"]),
+        ("Tracks", ["straight", "end", "start", "open", "side"]),
         ("Corners", ["corner", "round-corner-a", "round-corner-b", "round-corner-c",
                       "skew-corner", "square-corner-a", "inner-corner"]),
         ("Ramps", ["ramp", "ramp-low", "ramp-medium", "ramp-high",

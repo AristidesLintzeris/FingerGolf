@@ -31,18 +31,19 @@ class BallController {
     let areaAffectorNode: SCNNode
 
     /// Actual physics-driven position of the ball.
+    /// Always use this instead of ballNode.position for physics-driven nodes.
     var worldPosition: SCNVector3 {
         ballNode.presentation.position
     }
 
-    // MARK: - Aim Line (flat box anchored at ball center)
+    // MARK: - Aim Line
 
     private(set) var aimLineNode: SCNNode?
 
     // MARK: - Init
 
     init(color: String = "red") {
-        // Procedural sphere golf ball
+        // Golf ball: white sphere with PBR material
         let sphere = SCNSphere(radius: 0.035)
         let mat = SCNMaterial()
         mat.diffuse.contents = UIColor.white
@@ -53,7 +54,7 @@ class BallController {
         ballNode = SCNNode(geometry: sphere)
         ballNode.name = "golf_ball"
 
-        // Aim ring around ball (shows touch zone)
+        // Aim ring: torus around ball showing touch zone
         let ring = SCNTorus(ringRadius: 0.22, pipeRadius: 0.005)
         let ringMat = SCNMaterial()
         ringMat.diffuse.contents = UIColor.white.withAlphaComponent(0.4)
@@ -67,9 +68,7 @@ class BallController {
         areaAffectorNode.renderingOrder = 90
         areaAffectorNode.isHidden = true
 
-        // Aim line: flat box that extends FROM the ball's position.
-        // Using a box lying flat in XZ avoids complex cylinder rotation math.
-        // length (Z) = 1.0 base, scaled at runtime to match drag distance.
+        // Aim line: flat box that stretches from ball toward finger
         let box = SCNBox(width: 0.012, height: 0.006, length: 1.0, chamferRadius: 0)
         let lineMat = SCNMaterial()
         lineMat.diffuse.contents = UIColor.white.withAlphaComponent(0.8)
@@ -82,18 +81,18 @@ class BallController {
         aimLineNode?.name = "aim_line"
         aimLineNode?.isHidden = true
         aimLineNode?.renderingOrder = 95
-        // Shift pivot so the box extends from Z=0 to Z=+1 (starts at node origin)
+        // Shift pivot so box extends from Z=0 to Z=+1
         aimLineNode?.pivot = SCNMatrix4MakeTranslation(0, 0, -0.5)
     }
 
     // MARK: - Placement
 
     func placeBall(at position: SCNVector3) {
+        // Clear any lingering hole-capture animations
         ballNode.removeAllActions()
 
-        // Mesh floor is at Y≈0.063. Ball radius is 0.035.
-        // Spawn at Y=0.2 so the ball visibly drops onto the course.
-        ballNode.position = SCNVector3(position.x, 0.2, position.z)
+        // Drop ball from slightly above the play surface (Y=0.146)
+        ballNode.position = SCNVector3(position.x, 0.25, position.z)
 
         ballNode.physicsBody?.velocity = SCNVector3Zero
         ballNode.physicsBody?.angularVelocity = SCNVector4Zero
@@ -104,13 +103,13 @@ class BallController {
         ballNode.opacity = 1.0
         ballNode.scale = SCNVector3(1, 1, 1)
 
-        // Ball is settling after drop — not ready for play yet
+        // Ball is settling after drop — not ready to play yet
         ballIsStatic = false
         pendingShot = nil
-        graceFrames = 40  // ~0.67s at 60fps for ball to settle on mesh
+        graceFrames = 40 // ~0.67s at 60fps for ball to settle
 
         areaAffectorNode.isHidden = true
-        areaAffectorNode.position = SCNVector3(position.x, 0.065, position.z)
+        areaAffectorNode.position = SCNVector3(position.x, 0.15, position.z)
     }
 
     // MARK: - Aiming (direct aim — ball goes where you drag)
@@ -165,12 +164,12 @@ class BallController {
         let distance = sqrt(dx * dx + dz * dz)
         force = min(distance * forceModifier, maxForce)
 
-        // Direct aim: ball fires toward your finger
+        // Direct aim: ball fires toward finger position
         direction = SCNVector3(dx, 0, dz)
 
         updateAimLine()
 
-        // Visual feedback on aim ring
+        // Visual feedback: ring scales up and turns red with power
         let power = normalizedPower
         let s = 1.0 + power * 0.5
         areaAffectorNode.scale = SCNVector3(s, 1.0, s)
@@ -215,17 +214,9 @@ class BallController {
             return
         }
 
-        // Position at ball center
         aimLineNode.position = ballPos
-
-        // Rotate around Y so the box's +Z axis points from ball toward finger.
-        // atan2(dx, dz) = angle from +Z toward +X, which matches a Y-axis rotation.
         aimLineNode.eulerAngles = SCNVector3(0, atan2(dx, dz), 0)
-
-        // Scale Z to stretch the line from ball to finger.
-        // The pivot shift makes the box extend from the ball outward.
         aimLineNode.scale = SCNVector3(1, 1, lineLength)
-
         aimLineNode.isHidden = false
     }
 
@@ -240,8 +231,8 @@ class BallController {
         pendingShot = impulse
     }
 
-    /// Called every frame. Applies queued shots and checks ball state.
-    /// Returns true when the ball has just come to rest.
+    /// Called every frame (60fps). Applies queued shots and detects when ball stops.
+    /// Returns true the frame the ball comes to rest.
     @discardableResult
     func checkState() -> Bool {
         // Apply queued shot
@@ -249,24 +240,23 @@ class BallController {
             pendingShot = nil
             ballIsStatic = false
             areaAffectorNode.isHidden = true
-            graceFrames = 20
+            graceFrames = 15
 
-            // Re-activate dynamic physics for the shot
             ballNode.physicsBody?.type = .dynamic
             ballNode.physicsBody?.isAffectedByGravity = true
             ballNode.physicsBody?.applyForce(impulse, asImpulse: true)
             return false
         }
 
-        // Grace period — let the ball get moving before checking rest
+        // Grace period: let the ball get moving before checking rest
         if graceFrames > 0 {
             graceFrames -= 1
             return false
         }
 
-        // Detect ball at rest.
-        // SceneKit's rollingFriction + surface friction handle all deceleration naturally.
-        // We only freeze the ball once it's truly stopped to prevent slope sliding.
+        // Rest detection: freeze ball only when truly stopped.
+        // The low thresholds let SceneKit's rolling friction handle
+        // the entire deceleration curve naturally.
         if !ballIsStatic {
             guard let body = ballNode.physicsBody else { return false }
             let v = body.velocity
@@ -274,12 +264,12 @@ class BallController {
             let av = body.angularVelocity
             let angularSpeed = sqrt(av.x * av.x + av.y * av.y + av.z * av.z)
 
-            if speed < 0.005 && angularSpeed < 0.01 {
+            if speed < 0.002 && angularSpeed < 0.005 {
                 ballIsStatic = true
                 body.velocity = SCNVector3Zero
                 body.angularVelocity = SCNVector4Zero
 
-                // Freeze ball to prevent jitter/sliding on slopes
+                // Switch to kinematic to prevent jitter/sliding on slopes
                 body.isAffectedByGravity = false
                 body.type = .kinematic
 
@@ -307,6 +297,7 @@ class BallController {
         ballIsStatic = true
         areaAffectorNode.isHidden = true
 
+        // Snap to actual physics position
         ballNode.position = worldPosition
 
         ballNode.physicsBody?.velocity = SCNVector3Zero
@@ -314,13 +305,17 @@ class BallController {
         ballNode.physicsBody?.isAffectedByGravity = false
         ballNode.physicsBody?.type = .kinematic
 
-        // Animate into hole — floor surface is at Y≈0.063
+        // Animate ball into the hole:
+        // 1. Slide to hole center at the play surface height
+        // 2. Shrink + drop below surface
+        // 3. Fade out
+        let surfaceY: Float = 0.146
         let moveToHole = SCNAction.move(
-            to: SCNVector3(holePosition.x, 0.063, holePosition.z),
+            to: SCNVector3(holePosition.x, surfaceY, holePosition.z),
             duration: 0.2
         )
         let shrink = SCNAction.scale(to: 0.4, duration: 0.3)
-        let drop = SCNAction.moveBy(x: 0, y: -0.05, z: 0, duration: 0.2)
+        let drop = SCNAction.moveBy(x: 0, y: -0.08, z: 0, duration: 0.2)
         let fadeOut = SCNAction.fadeOut(duration: 0.15)
 
         ballNode.runAction(SCNAction.sequence([
